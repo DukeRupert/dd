@@ -1,9 +1,9 @@
 package main
 
 import (
-	"errors"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -63,6 +63,51 @@ func (ts *TestSuite) RunTests() {
 		result := ts.runTest(tc)
 		ts.Results = append(ts.Results, result)
 	}
+}
+
+// validateResponse recursively compares the actual response with the expected response
+// using custom validators where specified
+func validateResponse(actual, expected interface{}, validators map[string]ValidationFunc) error {
+	actualMap, actualOk := actual.(map[string]interface{})
+	expectedMap, expectedOk := expected.(map[string]interface{})
+
+	if !actualOk || !expectedOk {
+		return errors.New("both actual and expected must be objects")
+	}
+
+	for key, expectedValue := range expectedMap {
+		actualValue, exists := actualMap[key]
+		if !exists {
+			return fmt.Errorf("missing field: %s", key)
+		}
+
+		// If there's a custom validator for this field, use it
+		if validator, hasValidator := validators[key]; hasValidator {
+			if err := validator(actualValue); err != nil {
+				return fmt.Errorf("validation failed for field %s: %v", key, err)
+			}
+			continue
+		}
+
+		// For nested objects, recurse
+		if nestedExpected, isObject := expectedValue.(map[string]interface{}); isObject {
+			if nestedActual, ok := actualValue.(map[string]interface{}); ok {
+				if err := validateResponse(nestedActual, nestedExpected, validators); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+
+		// For non-validated fields, require exact match
+		expectedJSON, _ := json.Marshal(expectedValue)
+		actualJSON, _ := json.Marshal(actualValue)
+		if string(expectedJSON) != string(actualJSON) {
+			return fmt.Errorf("field %s mismatch. Expected: %s, Got: %s", key, string(expectedJSON), string(actualJSON))
+		}
+	}
+
+	return nil
 }
 
 // runTest executes a single test case
@@ -149,51 +194,6 @@ func (ts *TestSuite) runTest(tc TestCase) TestResult {
 }
 
 // PrintResults prints the test results to stdout
-// validateResponse recursively compares the actual response with the expected response
-// using custom validators where specified
-func validateResponse(actual, expected interface{}, validators map[string]ValidationFunc) error {
-	actualMap, actualOk := actual.(map[string]interface{})
-	expectedMap, expectedOk := expected.(map[string]interface{})
-
-	if !actualOk || !expectedOk {
-		return errors.New("both actual and expected must be objects")
-	}
-
-	for key, expectedValue := range expectedMap {
-		actualValue, exists := actualMap[key]
-		if !exists {
-			return fmt.Errorf("missing field: %s", key)
-		}
-
-		// If there's a custom validator for this field, use it
-		if validator, hasValidator := validators[key]; hasValidator {
-			if err := validator(actualValue); err != nil {
-				return fmt.Errorf("validation failed for field %s: %v", key, err)
-			}
-			continue
-		}
-
-		// For nested objects, recurse
-		if nestedExpected, isObject := expectedValue.(map[string]interface{}); isObject {
-			if nestedActual, ok := actualValue.(map[string]interface{}); ok {
-				if err := validateResponse(nestedActual, nestedExpected, validators); err != nil {
-					return err
-				}
-				continue
-			}
-		}
-
-		// For non-validated fields, require exact match
-		expectedJSON, _ := json.Marshal(expectedValue)
-		actualJSON, _ := json.Marshal(actualValue)
-		if string(expectedJSON) != string(actualJSON) {
-			return fmt.Errorf("field %s mismatch. Expected: %s, Got: %s", key, string(expectedJSON), string(actualJSON))
-		}
-	}
-
-	return nil
-}
-
 func (ts *TestSuite) PrintResults() {
 	fmt.Println("\nTest Results:")
 	fmt.Println("=============")
@@ -214,12 +214,10 @@ func (ts *TestSuite) PrintResults() {
 	fmt.Printf("\nSummary: %d/%d tests passed\n", passedTests, totalTests)
 }
 
-// Example usage:
 func main() {
 	// Create a new test suite
 	suite := NewTestSuite("http://localhost:8080")
 
-	// Add login test case
 	// Define a validator for non-empty string tokens
 	validateToken := func(value interface{}) error {
 		str, ok := value.(string)
@@ -232,6 +230,7 @@ func main() {
 		return nil
 	}
 
+	// Add login test case
 	suite.AddTest(TestCase{
 		Name:   "User Login",
 		Method: "POST",
@@ -254,6 +253,28 @@ func main() {
 				"last_name":  "Doe",
 				"created_at": "2025-01-29T20:36:29Z",
 			},
+		},
+		CustomValidators: map[string]ValidationFunc{
+			"token":         validateToken,
+			"refresh_token": validateToken,
+		},
+	})
+
+	// Add refresh token test case
+	suite.AddTest(TestCase{
+		Name:   "Refresh Token",
+		Method: "POST",
+		URL:    "/refresh",
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+		Body: map[string]interface{}{
+			"refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzM4Nzg5MjMwLCJuYmYiOjE3MzgxODQ0MzAsImlhdCI6MTczODE4NDQzMH0.Y-kCRV_JNSjYYJCGmJTDVBjUqaNcUh_y8YRpDPRQLNc",
+		},
+		ExpectedStatus: http.StatusOK,
+		ExpectedBody: map[string]interface{}{
+			"token":         "", // actual value will be validated by CustomValidators
+			"refresh_token": "", // actual value will be validated by CustomValidators
 		},
 		CustomValidators: map[string]ValidationFunc{
 			"token":         validateToken,
