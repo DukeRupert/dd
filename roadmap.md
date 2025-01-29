@@ -21,7 +21,7 @@
 - [x] Add password hashing and security measures
 - [ ] Implement password reset functionality
 - [ ] Add user profile management
-- [ ] Implement refresh token functionality
+- [x] Implement refresh token functionality
 - [ ] Add email verification
 
 ## Phase 3: Frontend Development

@@ -62,6 +62,15 @@ type loginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type refreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+type tokenResponse struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 // Custom validator
 type CustomValidator struct {
 	validator *validator.Validate
@@ -188,6 +197,7 @@ func main() {
 	})
 	e.POST("/register", app.registerUser)
 	e.POST("/login", app.loginUser)
+	e.POST("/refresh", app.refreshToken)
 
 	// Protected routes
 	protected := e.Group("")
@@ -514,5 +524,54 @@ func (app *application) loginUser(c echo.Context) error {
 		},
 		"token":         token,
 		"refresh_token": refreshToken,
+	})
+}
+
+func (app *application) refreshToken(c echo.Context) error {
+	var req refreshTokenRequest
+	if err := c.Bind(&req); err != nil {
+		return api.NewBadRequestError("invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+
+	// Validate refresh token
+	userID, err := app.auth.ValidateRefreshToken(req.RefreshToken)
+	if err != nil {
+		app.logger.Info().
+			Str("error", err.Error()).
+			Msg("Invalid refresh token")
+		return api.NewUnauthorizedError("invalid refresh token")
+	}
+
+	// Get user details
+	user, err := app.queries.GetUserByID(context.Background(), userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return api.NewUnauthorizedError("user not found")
+		}
+		return api.NewDatabaseError(err)
+	}
+
+	// Generate new tokens
+	newToken, err := app.auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return api.NewInternalError(err)
+	}
+
+	newRefreshToken, err := app.auth.GenerateRefreshToken(user.ID)
+	if err != nil {
+		return api.NewInternalError(err)
+	}
+
+	app.logger.Info().
+		Int64("user_id", user.ID).
+		Msg("Tokens refreshed successfully")
+
+	return c.JSON(http.StatusOK, tokenResponse{
+		Token:        newToken,
+		RefreshToken: newRefreshToken,
 	})
 }
