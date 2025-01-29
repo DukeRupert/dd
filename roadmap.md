@@ -4,10 +4,10 @@
 - [x] Set up basic Echo framework structure
 - [x] Implement SQLite with sqlc
 - [x] Create basic CRUD operations for records
-- [ ] Add database migrations support
-- [ ] Add input validation for all API endpoints
+- [x] Add database migrations support
+- [x] Add input validation for all API endpoints
 - [ ] Implement error handling middleware
-- [ ] Add request logging
+- [x] Add request logging
 - [ ] Create API documentation using Swagger/OpenAPI
 
 ## Phase 2: Authentication and User Management

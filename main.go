@@ -4,10 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
-	"net/http"
+
+	"github.com/go-playground/validator/v10"
 
 	"github.com/dukerupert/dd/db"
 
@@ -16,9 +20,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type application struct {
@@ -27,13 +31,17 @@ type application struct {
 }
 
 type createRecordRequest struct {
-	Artist    string `json:"artist"`
-	Album     string `json:"album"`
-	Year      int64  `json:"year"`
-	Genre     string `json:"genre"`
-	Condition string `json:"condition"`
+	Artist    string `json:"artist" validate:"required,min=1,max=100"`
+	Album     string `json:"album" validate:"required,min=1,max=100"`
+	Year      int64  `json:"year" validate:"required,min=1900,max=2100"`
+	Genre     string `json:"genre" validate:"required,min=1,max=50"`
+	Condition string `json:"condition" validate:"required,oneof=Mint Near-Mint Very-Good Good Fair Poor"`
 }
 
+// Custom validator
+type CustomValidator struct {
+	validator *validator.Validate
+}
 
 func init() {
 	// Configure zerolog
@@ -104,6 +112,35 @@ func initializeDatabase() (*sql.DB, error) {
 	return db, nil
 }
 
+// Validator functions
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.validator.Struct(i); err != nil {
+		// Return validation errors as a string
+		var errorMessages []string
+		for _, err := range err.(validator.ValidationErrors) {
+			errorMessages = append(errorMessages, formatValidationError(err))
+		}
+		return echo.NewHTTPError(http.StatusBadRequest, strings.Join(errorMessages, "; "))
+	}
+	return nil
+}
+
+func formatValidationError(err validator.FieldError) string {
+	field := err.Field()
+	switch err.Tag() {
+	case "required":
+		return fmt.Sprintf("%s is required", field)
+	case "min":
+		return fmt.Sprintf("%s must be at least %s", field, err.Param())
+	case "max":
+		return fmt.Sprintf("%s must not exceed %s", field, err.Param())
+	case "oneof":
+		return fmt.Sprintf("%s must be one of: %s", field, err.Param())
+	default:
+		return fmt.Sprintf("%s failed validation: %s", field, err.Tag())
+	}
+}
+
 func main() {
 	// Initialize logger
 	logger := log.With().Str("component", "main").Logger()
@@ -124,6 +161,9 @@ func main() {
 	// Create Echo instance
 	e := echo.New()
 	e.HideBanner = true
+
+	// Initialize validator
+	e.Validator = &CustomValidator{validator: validator.New()}
 
 	// Custom logger middleware using zerolog
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
@@ -205,6 +245,12 @@ func (app *application) createRecord(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
+	// Validate the request
+	if err := c.Validate(&req); err != nil {
+		app.logger.Error().Err(err).Interface("request", req).Msg("Failed validation")
+		return err // Our custom validator already returns an echo.HTTPError
+	}
+
 	params := db.CreateRecordParams{
 		Artist:    req.Artist,
 		Album:     req.Album,
@@ -241,6 +287,12 @@ func (app *application) updateRecord(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		app.logger.Error().Err(err).Msg("Failed to bind request")
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Validate the request
+	if err := c.Validate(&req); err != nil {
+		app.logger.Error().Err(err).Interface("request", req).Msg("Failed validation")
+		return err // Our custom validator already returns an echo.HTTPError
 	}
 
 	params := db.UpdateRecordParams{
