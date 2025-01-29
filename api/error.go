@@ -104,3 +104,11 @@ func NewBadRequestError(message string) *AppError {
 		Status:  http.StatusBadRequest,
 	}
 }
+
+func NewTooManyRequestsError(message string) *AppError {
+	return &AppError{
+		Code:    ErrCodeRateLimit,
+		Message: message,
+		Status:  http.StatusTooManyRequests,
+	}
+}

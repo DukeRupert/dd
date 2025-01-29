@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createRecord = `-- name: CreateRecord :one
@@ -62,10 +61,10 @@ RETURNING id, email, password_hash, first_name, last_name, created_at, updated_a
 `
 
 type CreateUserParams struct {
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	FirstName    sql.NullString `json:"first_name"`
-	LastName     sql.NullString `json:"last_name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
 }
 
 // User queries
@@ -277,10 +276,10 @@ RETURNING id, email, password_hash, first_name, last_name, created_at, updated_a
 `
 
 type UpdateUserParams struct {
-	Email     string         `json:"email"`
-	FirstName sql.NullString `json:"first_name"`
-	LastName  sql.NullString `json:"last_name"`
-	ID        int64          `json:"id"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	ID        int64  `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

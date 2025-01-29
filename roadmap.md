@@ -5,22 +5,24 @@
 - [x] Implement SQLite with sqlc
 - [x] Create basic CRUD operations for records
 - [x] Add database migrations support
+- [x] Add request logging (implemented with zerolog)
 - [x] Add input validation for all API endpoints
 - [x] Implement error handling middleware
-- [x] Add request logging
 - [ ] Create API documentation using Swagger/OpenAPI
 
 ## Phase 2: Authentication and User Management
-- [ ] Create users table in database
-- [ ] Implement user registration endpoint
-- [ ] Implement login/logout functionality
-- [ ] Add JWT token-based authentication
-- [ ] Create middleware for route protection
-- [ ] Add password hashing and security measures
+- [x] Create users table in database
+- [x] Add JWT token-based authentication
+- [x] Create middleware for route protection
+- [x] Add record ownership to database schema
+- [x] Modify all record endpoints to be user-specific
+- [x] Implement user registration endpoint
+- [x] Implement login functionality with rate limiting
+- [x] Add password hashing and security measures
 - [ ] Implement password reset functionality
-- [ ] Add record ownership to database schema
-- [ ] Modify all record endpoints to be user-specific
 - [ ] Add user profile management
+- [ ] Implement refresh token functionality
+- [ ] Add email verification
 
 ## Phase 3: Frontend Development
 - [ ] Set up HTML templates with Go templating engine
@@ -116,15 +118,3 @@
 - [ ] Create backup/restore procedures
 - [ ] Document security practices
 - [ ] Create troubleshooting guide
-
-## Future Enhancements
-- [ ] Social features (sharing collections, following users)
-- [ ] Record marketplace integration
-- [ ] Mobile app development
-- [ ] Record play count tracking
-- [ ] Integration with turntable systems
-- [ ] Collection insurance value reporting
-- [ ] Record location tracking (for physical organization)
-- [ ] Record condition photo documentation
-- [ ] Audio sample storage and playback
-- [ ] Record sleeve condition tracking

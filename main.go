@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/db"
+	"github.com/dukerupert/dd/ratelimit"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-migrate/migrate/v4"
@@ -22,12 +24,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type application struct {
 	queries *db.Queries
 	logger  zerolog.Logger
 	auth    *auth.Manager
+	rateLimiter *ratelimit.RateLimiter
 }
 
 type createRecordRequest struct {
@@ -36,6 +40,26 @@ type createRecordRequest struct {
 	Year      int64  `json:"year" validate:"required,min=1900,max=2100"`
 	Genre     string `json:"genre" validate:"required,min=1,max=50"`
 	Condition string `json:"condition" validate:"required,oneof=Mint Near-Mint Very-Good Good Fair Poor"`
+}
+
+type registerUserRequest struct {
+	Email     string `json:"email" validate:"required,email,max=255"`
+	Password  string `json:"password" validate:"required,min=8,max=72"`
+	FirstName string `json:"first_name" validate:"required,max=50"`
+	LastName  string `json:"last_name" validate:"required,max=50"`
+}
+
+type userResponse struct {
+	ID        int64     `json:"id"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type loginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 // Custom validator
@@ -134,11 +158,15 @@ func main() {
 	authConfig := auth.DefaultConfig()
 	authManager := auth.NewManager(authConfig)
 
+	// Initialize rate limiter (5 attempts per 15 minutes)
+	rateLimiter := ratelimit.New(5, 15*time.Minute)
+
 	// Initialize application
 	app := &application{
-		queries: db.New(sqlite),
-		logger:  logger,
-		auth:    authManager,
+		queries:     db.New(sqlite),
+		logger:      logger,
+		auth:        authManager,
+		rateLimiter: rateLimiter,
 	}
 
 	// Create Echo instance
@@ -158,7 +186,8 @@ func main() {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to Vinyl Collection API")
 	})
-	// TODO: Add login/register endpoints here
+	e.POST("/register", app.registerUser)
+	e.POST("/login", app.loginUser)
 
 	// Protected routes
 	protected := e.Group("")
@@ -345,4 +374,145 @@ func (app *application) deleteRecord(c echo.Context) error {
 		Msg("Record deleted")
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (app *application) registerUser(c echo.Context) error {
+	var req registerUserRequest
+	if err := c.Bind(&req); err != nil {
+		return api.NewBadRequestError("invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+
+	// Check if user already exists
+	_, err := app.queries.GetUserByEmail(context.Background(), req.Email)
+	if err == nil {
+		return api.NewBadRequestError("email already registered")
+	} else if err != sql.ErrNoRows {
+		return api.NewDatabaseError(err)
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		app.logger.Error().Err(err).Msg("Failed to hash password")
+		return api.NewInternalError(err)
+	}
+
+	// Create user
+	params := db.CreateUserParams{
+		Email:        req.Email,
+		PasswordHash: string(hashedPassword),
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+	}
+
+	user, err := app.queries.CreateUser(context.Background(), params)
+	if err != nil {
+		return api.NewDatabaseError(err)
+	}
+
+	// Generate JWT token
+	token, err := app.auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return api.NewInternalError(err)
+	}
+
+	app.logger.Info().
+		Int64("user_id", user.ID).
+		Str("email", user.Email).
+		Msg("User registered successfully")
+
+	// Return user data and token
+	return c.JSON(http.StatusCreated, echo.Map{
+		"user": userResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			CreatedAt: user.CreatedAt,
+		},
+		"token": token,
+	})
+}
+
+func (app *application) loginUser(c echo.Context) error {
+	// Get IP address for rate limiting
+	ip := c.RealIP()
+
+	// Check rate limit
+	if !app.rateLimiter.Allow(ip) {
+		remaining, duration := app.rateLimiter.GetRemainingAttempts(ip)
+		app.logger.Warn().
+			Str("ip", ip).
+			Int("remaining_attempts", remaining).
+			Dur("lockout_duration", duration).
+			Msg("Rate limit exceeded for login attempts")
+		
+		return api.NewTooManyRequestsError(fmt.Sprintf("Too many login attempts. Try again in %v", duration.Round(time.Minute)))
+	}
+
+	var req loginRequest
+	if err := c.Bind(&req); err != nil {
+		return api.NewBadRequestError("invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+
+	// Get user by email
+	user, err := app.queries.GetUserByEmail(context.Background(), req.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			app.logger.Info().
+				Str("ip", ip).
+				Str("email", req.Email).
+				Msg("Failed login attempt - user not found")
+			return api.NewUnauthorizedError("invalid credentials")
+		}
+		return api.NewDatabaseError(err)
+	}
+
+	// Compare passwords
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		app.logger.Info().
+			Str("ip", ip).
+			Str("email", req.Email).
+			Msg("Failed login attempt - invalid password")
+		return api.NewUnauthorizedError("invalid credentials")
+	}
+
+	// Generate token
+	token, err := app.auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return api.NewInternalError(err)
+	}
+
+	// Generate refresh token
+	refreshToken, err := app.auth.GenerateRefreshToken(user.ID)
+	if err != nil {
+		return api.NewInternalError(err)
+	}
+
+	app.logger.Info().
+		Str("ip", ip).
+		Int64("user_id", user.ID).
+		Str("email", user.Email).
+		Msg("User logged in successfully")
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"user": userResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			CreatedAt: user.CreatedAt,
+		},
+		"token":         token,
+		"refresh_token": refreshToken,
+	})
 }
