@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
-	"net/http"
 
 	"github.com/dukerupert/dd/api"
+	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/db"
 
 	"github.com/go-playground/validator/v10"
@@ -18,14 +19,15 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type application struct {
 	queries *db.Queries
 	logger  zerolog.Logger
+	auth    *auth.Manager
 }
 
 type createRecordRequest struct {
@@ -128,10 +130,15 @@ func main() {
 	}
 	defer sqlite.Close()
 
+	// Initialize auth manager
+	authConfig := auth.DefaultConfig()
+	authManager := auth.NewManager(authConfig)
+
 	// Initialize application
 	app := &application{
 		queries: db.New(sqlite),
 		logger:  logger,
+		auth:    authManager,
 	}
 
 	// Create Echo instance
@@ -147,17 +154,22 @@ func main() {
 	e.Use(api.ErrorHandlerMiddleware(logger))
 	e.Use(middleware.CORS())
 
-	// Routes
+	// Public routes
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to Vinyl Collection API")
 	})
+	// TODO: Add login/register endpoints here
+
+	// Protected routes
+	protected := e.Group("")
+	protected.Use(authManager.Middleware())
 
 	// Record endpoints
-	e.GET("/records", app.getAllRecords)
-	e.GET("/records/:id", app.getRecord)
-	e.POST("/records", app.createRecord)
-	e.PUT("/records/:id", app.updateRecord)
-	e.DELETE("/records/:id", app.deleteRecord)
+	protected.GET("/records", app.getAllRecords)
+	protected.GET("/records/:id", app.getRecord)
+	protected.POST("/records", app.createRecord)
+	protected.PUT("/records/:id", app.updateRecord)
+	protected.DELETE("/records/:id", app.deleteRecord)
 
 	// Start server
 	serverAddr := ":8080"
@@ -168,22 +180,41 @@ func main() {
 }
 
 func (app *application) getAllRecords(c echo.Context) error {
-	records, err := app.queries.ListRecords(context.Background())
+	// Get user ID from context
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
+	records, err := app.queries.ListRecords(context.Background(), userID)
 	if err != nil {
 		return api.NewDatabaseError(err)
 	}
 
-	app.logger.Debug().Int("count", len(records)).Msg("Records retrieved")
+	app.logger.Debug().
+		Int64("user_id", userID).
+		Int("count", len(records)).
+		Msg("Records retrieved")
+	
 	return c.JSON(http.StatusOK, records)
 }
 
 func (app *application) getRecord(c echo.Context) error {
+	// Get user ID from context
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return api.NewBadRequestError("invalid id format")
 	}
 
-	record, err := app.queries.GetRecord(context.Background(), id)
+	record, err := app.queries.GetRecord(context.Background(), db.GetRecordParams{
+		ID:     id,
+		UserID: userID,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.NewNotFoundError("record")
@@ -195,6 +226,12 @@ func (app *application) getRecord(c echo.Context) error {
 }
 
 func (app *application) createRecord(c echo.Context) error {
+	// Get user ID from context
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
 	var req createRecordRequest
 	if err := c.Bind(&req); err != nil {
 		return api.NewBadRequestError("invalid request body")
@@ -206,6 +243,7 @@ func (app *application) createRecord(c echo.Context) error {
 	}
 
 	params := db.CreateRecordParams{
+		UserID:    userID,
 		Artist:    req.Artist,
 		Album:     req.Album,
 		Year:      req.Year,
@@ -220,6 +258,7 @@ func (app *application) createRecord(c echo.Context) error {
 
 	app.logger.Info().
 		Int64("id", record.ID).
+		Int64("user_id", userID).
 		Str("artist", record.Artist).
 		Str("album", record.Album).
 		Msg("Record created")
@@ -228,6 +267,12 @@ func (app *application) createRecord(c echo.Context) error {
 }
 
 func (app *application) updateRecord(c echo.Context) error {
+	// Get user ID from context
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return api.NewBadRequestError("invalid id format")
@@ -245,6 +290,7 @@ func (app *application) updateRecord(c echo.Context) error {
 
 	params := db.UpdateRecordParams{
 		ID:        id,
+		UserID:    userID,
 		Artist:    req.Artist,
 		Album:     req.Album,
 		Year:      req.Year,
@@ -262,6 +308,7 @@ func (app *application) updateRecord(c echo.Context) error {
 
 	app.logger.Info().
 		Int64("id", record.ID).
+		Int64("user_id", userID).
 		Str("artist", record.Artist).
 		Str("album", record.Album).
 		Msg("Record updated")
@@ -270,12 +317,21 @@ func (app *application) updateRecord(c echo.Context) error {
 }
 
 func (app *application) deleteRecord(c echo.Context) error {
+	// Get user ID from context
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return api.NewBadRequestError("invalid id format")
 	}
 
-	err = app.queries.DeleteRecord(context.Background(), id)
+	err = app.queries.DeleteRecord(context.Background(), db.DeleteRecordParams{
+		ID:     id,
+		UserID: userID,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.NewNotFoundError("record")
@@ -283,6 +339,10 @@ func (app *application) deleteRecord(c echo.Context) error {
 		return api.NewDatabaseError(err)
 	}
 
-	app.logger.Info().Int64("id", id).Msg("Record deleted")
+	app.logger.Info().
+		Int64("id", id).
+		Int64("user_id", userID).
+		Msg("Record deleted")
+
 	return c.NoContent(http.StatusNoContent)
 }

@@ -7,15 +7,16 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createRecord = `-- name: CreateRecord :one
 INSERT INTO records (
-    artist, album, year, genre, condition
+    artist, album, year, genre, condition, user_id
 ) VALUES (
-    ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?
 )
-RETURNING id, artist, album, year, genre, condition, created_at, updated_at
+RETURNING id, artist, album, year, genre, condition, user_id, created_at, updated_at
 `
 
 type CreateRecordParams struct {
@@ -24,6 +25,7 @@ type CreateRecordParams struct {
 	Year      int64  `json:"year"`
 	Genre     string `json:"genre"`
 	Condition string `json:"condition"`
+	UserID    int64  `json:"user_id"`
 }
 
 func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Record, error) {
@@ -33,6 +35,7 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 		arg.Year,
 		arg.Genre,
 		arg.Condition,
+		arg.UserID,
 	)
 	var i Record
 	err := row.Scan(
@@ -42,6 +45,44 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    email, password_hash, first_name, last_name
+) VALUES (
+    ?, ?, ?, ?
+)
+RETURNING id, email, password_hash, first_name, last_name, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	FirstName    sql.NullString `json:"first_name"`
+	LastName     sql.NullString `json:"last_name"`
+}
+
+// User queries
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Email,
+		arg.PasswordHash,
+		arg.FirstName,
+		arg.LastName,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -49,20 +90,43 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 }
 
 const deleteRecord = `-- name: DeleteRecord :exec
-DELETE FROM records WHERE id = ?
+DELETE FROM records 
+WHERE id = ? AND user_id = ?
 `
 
-func (q *Queries) DeleteRecord(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteRecord, id)
+type DeleteRecordParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+func (q *Queries) DeleteRecord(ctx context.Context, arg DeleteRecordParams) error {
+	_, err := q.db.ExecContext(ctx, deleteRecord, arg.ID, arg.UserID)
+	return err
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = ?
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
 }
 
 const getRecord = `-- name: GetRecord :one
-SELECT id, artist, album, year, genre, condition, created_at, updated_at FROM records WHERE id = ? LIMIT 1
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records 
+WHERE id = ? AND user_id = ? 
+LIMIT 1
 `
 
-func (q *Queries) GetRecord(ctx context.Context, id int64) (Record, error) {
-	row := q.db.QueryRowContext(ctx, getRecord, id)
+type GetRecordParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+// Record queries
+func (q *Queries) GetRecord(ctx context.Context, arg GetRecordParams) (Record, error) {
+	row := q.db.QueryRowContext(ctx, getRecord, arg.ID, arg.UserID)
 	var i Record
 	err := row.Scan(
 		&i.ID,
@@ -71,6 +135,45 @@ func (q *Queries) GetRecord(ctx context.Context, id int64) (Record, error) {
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, password_hash, first_name, last_name, created_at, updated_at FROM users WHERE email = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password_hash, first_name, last_name, created_at, updated_at FROM users WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -78,11 +181,13 @@ func (q *Queries) GetRecord(ctx context.Context, id int64) (Record, error) {
 }
 
 const listRecords = `-- name: ListRecords :many
-SELECT id, artist, album, year, genre, condition, created_at, updated_at FROM records ORDER BY artist
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records 
+WHERE user_id = ? 
+ORDER BY artist
 `
 
-func (q *Queries) ListRecords(ctx context.Context) ([]Record, error) {
-	rows, err := q.db.QueryContext(ctx, listRecords)
+func (q *Queries) ListRecords(ctx context.Context, userID int64) ([]Record, error) {
+	rows, err := q.db.QueryContext(ctx, listRecords, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +202,7 @@ func (q *Queries) ListRecords(ctx context.Context) ([]Record, error) {
 			&i.Year,
 			&i.Genre,
 			&i.Condition,
+			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -121,8 +227,8 @@ SET artist = ?,
     genre = ?,
     condition = ?,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
-RETURNING id, artist, album, year, genre, condition, created_at, updated_at
+WHERE id = ? AND user_id = ?
+RETURNING id, artist, album, year, genre, condition, user_id, created_at, updated_at
 `
 
 type UpdateRecordParams struct {
@@ -132,6 +238,7 @@ type UpdateRecordParams struct {
 	Genre     string `json:"genre"`
 	Condition string `json:"condition"`
 	ID        int64  `json:"id"`
+	UserID    int64  `json:"user_id"`
 }
 
 func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Record, error) {
@@ -142,6 +249,7 @@ func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Rec
 		arg.Genre,
 		arg.Condition,
 		arg.ID,
+		arg.UserID,
 	)
 	var i Record
 	err := row.Scan(
@@ -151,8 +259,63 @@ func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Rec
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET email = ?,
+    first_name = ?,
+    last_name = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, email, password_hash, first_name, last_name, created_at, updated_at
+`
+
+type UpdateUserParams struct {
+	Email     string         `json:"email"`
+	FirstName sql.NullString `json:"first_name"`
+	LastName  sql.NullString `json:"last_name"`
+	ID        int64          `json:"id"`
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.Email,
+		arg.FirstName,
+		arg.LastName,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string `json:"password_hash"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	return err
 }
