@@ -4,25 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
+	"net/http"
 
-	"github.com/go-playground/validator/v10"
-
+	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/db"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type application struct {
@@ -41,6 +39,13 @@ type createRecordRequest struct {
 // Custom validator
 type CustomValidator struct {
 	validator *validator.Validate
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.validator.Struct(i); err != nil {
+		return api.NewValidationError(err.Error())
+	}
+	return nil
 }
 
 func init() {
@@ -112,35 +117,6 @@ func initializeDatabase() (*sql.DB, error) {
 	return db, nil
 }
 
-// Validator functions
-func (cv *CustomValidator) Validate(i interface{}) error {
-	if err := cv.validator.Struct(i); err != nil {
-		// Return validation errors as a string
-		var errorMessages []string
-		for _, err := range err.(validator.ValidationErrors) {
-			errorMessages = append(errorMessages, formatValidationError(err))
-		}
-		return echo.NewHTTPError(http.StatusBadRequest, strings.Join(errorMessages, "; "))
-	}
-	return nil
-}
-
-func formatValidationError(err validator.FieldError) string {
-	field := err.Field()
-	switch err.Tag() {
-	case "required":
-		return fmt.Sprintf("%s is required", field)
-	case "min":
-		return fmt.Sprintf("%s must be at least %s", field, err.Param())
-	case "max":
-		return fmt.Sprintf("%s must not exceed %s", field, err.Param())
-	case "oneof":
-		return fmt.Sprintf("%s must be one of: %s", field, err.Param())
-	default:
-		return fmt.Sprintf("%s failed validation: %s", field, err.Tag())
-	}
-}
-
 func main() {
 	// Initialize logger
 	logger := log.With().Str("component", "main").Logger()
@@ -161,29 +137,14 @@ func main() {
 	// Create Echo instance
 	e := echo.New()
 	e.HideBanner = true
-
+	
 	// Initialize validator
 	e.Validator = &CustomValidator{validator: validator.New()}
 
-	// Custom logger middleware using zerolog
-	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogURI:    true,
-		LogStatus: true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			app.logger.Info().
-				Str("URI", v.URI).
-				Int("status", v.Status).
-				Str("method", c.Request().Method).
-				Str("ip", c.RealIP()).
-				Str("user_agent", c.Request().UserAgent()).
-				Dur("latency", v.Latency).
-				Msg("Request")
-			return nil
-		},
-	}))
-
-	// Middleware
+	// Middleware - order is important
+	e.Use(middleware.RequestID())
 	e.Use(middleware.Recover())
+	e.Use(api.ErrorHandlerMiddleware(logger))
 	e.Use(middleware.CORS())
 
 	// Routes
@@ -209,8 +170,7 @@ func main() {
 func (app *application) getAllRecords(c echo.Context) error {
 	records, err := app.queries.ListRecords(context.Background())
 	if err != nil {
-		app.logger.Error().Err(err).Msg("Failed to list records")
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return api.NewDatabaseError(err)
 	}
 
 	app.logger.Debug().Int("count", len(records)).Msg("Records retrieved")
@@ -220,35 +180,29 @@ func (app *application) getAllRecords(c echo.Context) error {
 func (app *application) getRecord(c echo.Context) error {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		app.logger.Error().Err(err).Str("id", c.Param("id")).Msg("Invalid record ID")
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid id")
+		return api.NewBadRequestError("invalid id format")
 	}
 
 	record, err := app.queries.GetRecord(context.Background(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			app.logger.Debug().Int64("id", id).Msg("Record not found")
-			return echo.NewHTTPError(http.StatusNotFound, "record not found")
+			return api.NewNotFoundError("record")
 		}
-		app.logger.Error().Err(err).Int64("id", id).Msg("Failed to get record")
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return api.NewDatabaseError(err)
 	}
 
-	app.logger.Debug().Int64("id", id).Msg("Record retrieved")
 	return c.JSON(http.StatusOK, record)
 }
 
 func (app *application) createRecord(c echo.Context) error {
 	var req createRecordRequest
 	if err := c.Bind(&req); err != nil {
-		app.logger.Error().Err(err).Msg("Failed to bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return api.NewBadRequestError("invalid request body")
 	}
 
 	// Validate the request
 	if err := c.Validate(&req); err != nil {
-		app.logger.Error().Err(err).Interface("request", req).Msg("Failed validation")
-		return err // Our custom validator already returns an echo.HTTPError
+		return err // Our custom validator already returns an api.ValidationError
 	}
 
 	params := db.CreateRecordParams{
@@ -261,11 +215,7 @@ func (app *application) createRecord(c echo.Context) error {
 
 	record, err := app.queries.CreateRecord(context.Background(), params)
 	if err != nil {
-		app.logger.Error().Err(err).
-			Str("artist", req.Artist).
-			Str("album", req.Album).
-			Msg("Failed to create record")
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return api.NewDatabaseError(err)
 	}
 
 	app.logger.Info().
@@ -273,26 +223,24 @@ func (app *application) createRecord(c echo.Context) error {
 		Str("artist", record.Artist).
 		Str("album", record.Album).
 		Msg("Record created")
+
 	return c.JSON(http.StatusCreated, record)
 }
 
 func (app *application) updateRecord(c echo.Context) error {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		app.logger.Error().Err(err).Str("id", c.Param("id")).Msg("Invalid record ID")
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid id")
+		return api.NewBadRequestError("invalid id format")
 	}
 
 	var req createRecordRequest
 	if err := c.Bind(&req); err != nil {
-		app.logger.Error().Err(err).Msg("Failed to bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return api.NewBadRequestError("invalid request body")
 	}
 
 	// Validate the request
 	if err := c.Validate(&req); err != nil {
-		app.logger.Error().Err(err).Interface("request", req).Msg("Failed validation")
-		return err // Our custom validator already returns an echo.HTTPError
+		return err // Our custom validator already returns an api.ValidationError
 	}
 
 	params := db.UpdateRecordParams{
@@ -307,11 +255,9 @@ func (app *application) updateRecord(c echo.Context) error {
 	record, err := app.queries.UpdateRecord(context.Background(), params)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			app.logger.Debug().Int64("id", id).Msg("Record not found")
-			return echo.NewHTTPError(http.StatusNotFound, "record not found")
+			return api.NewNotFoundError("record")
 		}
-		app.logger.Error().Err(err).Int64("id", id).Msg("Failed to update record")
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return api.NewDatabaseError(err)
 	}
 
 	app.logger.Info().
@@ -319,24 +265,22 @@ func (app *application) updateRecord(c echo.Context) error {
 		Str("artist", record.Artist).
 		Str("album", record.Album).
 		Msg("Record updated")
+
 	return c.JSON(http.StatusOK, record)
 }
 
 func (app *application) deleteRecord(c echo.Context) error {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		app.logger.Error().Err(err).Str("id", c.Param("id")).Msg("Invalid record ID")
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid id")
+		return api.NewBadRequestError("invalid id format")
 	}
 
 	err = app.queries.DeleteRecord(context.Background(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			app.logger.Debug().Int64("id", id).Msg("Record not found")
-			return echo.NewHTTPError(http.StatusNotFound, "record not found")
+			return api.NewNotFoundError("record")
 		}
-		app.logger.Error().Err(err).Int64("id", id).Msg("Failed to delete record")
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return api.NewDatabaseError(err)
 	}
 
 	app.logger.Info().Int64("id", id).Msg("Record deleted")
