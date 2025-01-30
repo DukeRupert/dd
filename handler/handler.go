@@ -53,6 +53,8 @@ func (app *application) CreateRoutes(e *echo.Echo){
 	e.POST("/register", app.registerUser)
 	e.POST("/login", app.loginUser)
 	e.POST("/refresh", app.refreshToken)
+	e.POST("/forgot-password", app.requestPasswordReset)
+	e.POST("/reset-password", app.resetPassword)
 
 	// Protected routes
 	protected := e.Group("")

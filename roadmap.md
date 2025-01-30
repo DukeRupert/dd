@@ -19,7 +19,7 @@
 - [x] Implement user registration endpoint
 - [x] Implement login functionality with rate limiting
 - [x] Add password hashing and security measures
-- [ ] Implement password reset functionality
+- [x] Implement password reset functionality
 - [ ] Add user profile management
 - [x] Implement refresh token functionality
 - [ ] Add email verification

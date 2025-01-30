@@ -24,6 +24,16 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_records_user_id ON records(user_id);
 
+CREATE TABLE password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    used_at DATETIME,
+    UNIQUE(token)
+);
+
 -- Record queries
 -- name: GetRecord :one
 SELECT * FROM records 
@@ -90,3 +100,25 @@ WHERE id = ?;
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;
+
+-- name: CreatePasswordReset :one
+INSERT INTO password_resets (
+    user_id, token, expires_at
+) VALUES (
+    ?, ?, ?
+)
+RETURNING *;
+
+-- name: GetPasswordResetByToken :one
+SELECT pr.*, u.email 
+FROM password_resets pr
+JOIN users u ON pr.user_id = u.id
+WHERE pr.token = ? 
+  AND pr.expires_at > datetime('now')
+  AND pr.used_at IS NULL
+LIMIT 1;
+
+-- name: MarkPasswordResetUsed :exec
+UPDATE password_resets
+SET used_at = CURRENT_TIMESTAMP
+WHERE token = ?;

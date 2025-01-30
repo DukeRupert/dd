@@ -7,7 +7,38 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
+
+const createPasswordReset = `-- name: CreatePasswordReset :one
+INSERT INTO password_resets (
+    user_id, token, expires_at
+) VALUES (
+    ?, ?, ?
+)
+RETURNING id, user_id, token, expires_at, created_at, used_at
+`
+
+type CreatePasswordResetParams struct {
+	UserID    int64     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error) {
+	row := q.db.QueryRowContext(ctx, createPasswordReset, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i PasswordReset
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UsedAt,
+	)
+	return i, err
+}
 
 const createRecord = `-- name: CreateRecord :one
 INSERT INTO records (
@@ -110,6 +141,41 @@ DELETE FROM users WHERE id = ?
 func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
+}
+
+const getPasswordResetByToken = `-- name: GetPasswordResetByToken :one
+SELECT pr.id, pr.user_id, pr.token, pr.expires_at, pr.created_at, pr.used_at, u.email 
+FROM password_resets pr
+JOIN users u ON pr.user_id = u.id
+WHERE pr.token = ? 
+  AND pr.expires_at > datetime('now')
+  AND pr.used_at IS NULL
+LIMIT 1
+`
+
+type GetPasswordResetByTokenRow struct {
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	CreatedAt time.Time    `json:"created_at"`
+	UsedAt    sql.NullTime `json:"used_at"`
+	Email     string       `json:"email"`
+}
+
+func (q *Queries) GetPasswordResetByToken(ctx context.Context, token string) (GetPasswordResetByTokenRow, error) {
+	row := q.db.QueryRowContext(ctx, getPasswordResetByToken, token)
+	var i GetPasswordResetByTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UsedAt,
+		&i.Email,
+	)
+	return i, err
 }
 
 const getRecord = `-- name: GetRecord :one
@@ -216,6 +282,17 @@ func (q *Queries) ListRecords(ctx context.Context, userID int64) ([]Record, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const markPasswordResetUsed = `-- name: MarkPasswordResetUsed :exec
+UPDATE password_resets
+SET used_at = CURRENT_TIMESTAMP
+WHERE token = ?
+`
+
+func (q *Queries) MarkPasswordResetUsed(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, markPasswordResetUsed, token)
+	return err
 }
 
 const updateRecord = `-- name: UpdateRecord :one

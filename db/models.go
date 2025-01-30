@@ -5,8 +5,18 @@
 package db
 
 import (
+	"database/sql"
 	"time"
 )
+
+type PasswordReset struct {
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	CreatedAt time.Time    `json:"created_at"`
+	UsedAt    sql.NullTime `json:"used_at"`
+}
 
 type Record struct {
 	ID        int64     `json:"id"`
