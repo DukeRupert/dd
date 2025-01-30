@@ -74,12 +74,29 @@ func (app *application) requestPasswordReset(c echo.Context) error {
 		return api.NewDatabaseError(err)
 	}
 
-	// TODO: Send email with reset link
+	// Create reset link
 	resetLink := fmt.Sprintf("http://localhost:8080/reset-password?token=%s", token)
+
+	// Send password reset email
+	if app.mailer == nil {
+		app.logger.Error().
+			Str("email", user.Email).
+			Msg("Password reset requested but email service is not configured")
+		return api.NewInternalError(fmt.Errorf("email service not configured"))
+	}
+
+	err = app.mailer.SendPasswordResetEmail(user.Email, resetLink)
+	if err != nil {
+		app.logger.Error().
+			Err(err).
+			Str("email", user.Email).
+			Msg("Failed to send password reset email")
+		return api.NewInternalError(fmt.Errorf("failed to send password reset email"))
+	}
+
 	app.logger.Info().
 		Str("email", user.Email).
-		Str("reset_link", resetLink).
-		Msg("Password reset requested")
+		Msg("Password reset email sent")
 
 	// Don't reveal whether the email exists
 	return c.NoContent(http.StatusAccepted)

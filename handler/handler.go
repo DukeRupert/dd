@@ -6,10 +6,11 @@ import (
 	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/db"
+	"github.com/dukerupert/dd/email"
 	"github.com/dukerupert/dd/ratelimit"
 
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 )
 
@@ -18,6 +19,7 @@ type Config struct {
 	Logger      zerolog.Logger
 	Auth        *auth.Manager
 	RateLimiter *ratelimit.RateLimiter
+	Mailer      *email.Client
 }
 
 type application struct {
@@ -25,6 +27,7 @@ type application struct {
 	logger      zerolog.Logger
 	auth        *auth.Manager
 	rateLimiter *ratelimit.RateLimiter
+	mailer      *email.Client
 }
 
 func NewHandler(cfg Config) *application {
@@ -33,18 +36,19 @@ func NewHandler(cfg Config) *application {
 		logger:      cfg.Logger,
 		auth:        cfg.Auth,
 		rateLimiter: cfg.RateLimiter,
+		mailer:      cfg.Mailer,
 	}
 }
 
-func (app *application) ApplyMiddleware(e *echo.Echo){
-		// Middleware - order is important
-		e.Use(middleware.RequestID())
-		e.Use(middleware.Recover())
-		e.Use(api.ErrorHandlerMiddleware(app.logger))
-		e.Use(middleware.CORS())
+func (app *application) ApplyMiddleware(e *echo.Echo) {
+	// Middleware - order is important
+	e.Use(middleware.RequestID())
+	e.Use(middleware.Recover())
+	e.Use(api.ErrorHandlerMiddleware(app.logger))
+	e.Use(middleware.CORS())
 }
 
-func (app *application) CreateRoutes(e *echo.Echo){
+func (app *application) CreateRoutes(e *echo.Echo) {
 
 	// Public routes
 	e.GET("/", func(c echo.Context) error {
@@ -65,6 +69,6 @@ func (app *application) CreateRoutes(e *echo.Echo){
 	protected.GET("/records/:id", app.getRecord)
 	protected.POST("/records", app.createRecord)
 	protected.PUT("/records/:id", app.updateRecord)
-	protected.DELETE("/records/:id", app.deleteRecord)// Middleware - order is important
+	protected.DELETE("/records/:id", app.deleteRecord) // Middleware - order is important
 
 }

@@ -20,6 +20,7 @@
 - [x] Implement login functionality with rate limiting
 - [x] Add password hashing and security measures
 - [x] Implement password reset functionality
+- [x] Add email service integration
 - [ ] Add user profile management
 - [x] Implement refresh token functionality
 - [ ] Add email verification

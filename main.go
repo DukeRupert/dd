@@ -8,6 +8,7 @@ import (
 	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/db"
+	"github.com/dukerupert/dd/email"
 	"github.com/dukerupert/dd/handler"
 	"github.com/dukerupert/dd/ratelimit"
 
@@ -26,6 +27,12 @@ func init() {
 }
 
 func main() {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
+
 	// Initialize logger
 	logger := log.With().Str("component", "main").Logger()
 
@@ -38,10 +45,30 @@ func main() {
 
 	// Initialize auth manager
 	authConfig := auth.DefaultConfig()
+	authConfig.SecretKey = cfg.JWTSecret
 	authManager := auth.NewManager(authConfig)
 
 	// Initialize rate limiter (5 attempts per 15 minutes)
 	rateLimiter := ratelimit.New(5, 15*time.Minute)
+
+	// Initialize email client
+	var emailClient *email.Client
+	if cfg.PostmarkServerToken != "" && cfg.FromEmail != "" {
+		var err error
+		emailClient, err = email.NewClient(
+			cfg.PostmarkServerToken,
+			cfg.FromEmail,
+		)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to initialize email client")
+		} else {
+			logger.Info().
+				Str("from_email", cfg.FromEmail).
+				Msg("Email client initialized successfully")
+		}
+	} else {
+		logger.Warn().Msg("Email client not configured, password reset functionality will be disabled")
+	}
 
 	// Initialize application
 	appConfig := handler.Config{
@@ -49,6 +76,7 @@ func main() {
 		Logger:      logger,
 		Auth:        authManager,
 		RateLimiter: rateLimiter,
+		Mailer:      emailClient,
 	}
 
 	app := handler.NewHandler(appConfig)
