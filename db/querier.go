@@ -23,6 +23,8 @@ type Querier interface {
 	GetRecord(ctx context.Context, arg GetRecordParams) (Record, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserRecords(ctx context.Context, arg GetUserRecordsParams) ([]Record, error)
+	GetUserRecordsCount(ctx context.Context, arg GetUserRecordsCountParams) (int64, error)
 	IsEmailVerified(ctx context.Context, id int64) (bool, error)
 	ListRecords(ctx context.Context, userID int64) ([]Record, error)
 	MarkEmailVerificationUsed(ctx context.Context, token string) error

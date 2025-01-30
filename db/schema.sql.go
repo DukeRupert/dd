@@ -318,6 +318,104 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const getUserRecords = `-- name: GetUserRecords :many
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records
+WHERE user_id = ? 
+    AND (artist LIKE ? OR album LIKE ?)
+    AND (? OR genre = ?)
+ORDER BY 
+    CASE @sort_order 
+        WHEN 'artist_asc' THEN artist 
+        WHEN 'artist_desc' THEN artist END DESC,
+    CASE @sort_order 
+        WHEN 'album_asc' THEN album 
+        WHEN 'album_desc' THEN album END DESC,
+    CASE @sort_order 
+        WHEN 'year_asc' THEN year 
+        WHEN 'year_desc' THEN year END DESC,
+    created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type GetUserRecordsParams struct {
+	UserID  int64       `json:"user_id"`
+	Artist  string      `json:"artist"`
+	Album   string      `json:"album"`
+	Column4 interface{} `json:"column_4"`
+	Genre   string      `json:"genre"`
+	Limit   int64       `json:"limit"`
+	Offset  int64       `json:"offset"`
+}
+
+func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) ([]Record, error) {
+	rows, err := q.db.QueryContext(ctx, getUserRecords,
+		arg.UserID,
+		arg.Artist,
+		arg.Album,
+		arg.Column4,
+		arg.Genre,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Record
+	for rows.Next() {
+		var i Record
+		if err := rows.Scan(
+			&i.ID,
+			&i.Artist,
+			&i.Album,
+			&i.Year,
+			&i.Genre,
+			&i.Condition,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserRecordsCount = `-- name: GetUserRecordsCount :one
+SELECT COUNT(*) FROM records
+WHERE user_id = ? 
+    AND (artist LIKE ? OR album LIKE ?)
+    AND (? OR genre = ?)
+`
+
+type GetUserRecordsCountParams struct {
+	UserID  int64       `json:"user_id"`
+	Artist  string      `json:"artist"`
+	Album   string      `json:"album"`
+	Column4 interface{} `json:"column_4"`
+	Genre   string      `json:"genre"`
+}
+
+func (q *Queries) GetUserRecordsCount(ctx context.Context, arg GetUserRecordsCountParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUserRecordsCount,
+		arg.UserID,
+		arg.Artist,
+		arg.Album,
+		arg.Column4,
+		arg.Genre,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const isEmailVerified = `-- name: IsEmailVerified :one
 SELECT verified_at IS NOT NULL as is_verified
 FROM users

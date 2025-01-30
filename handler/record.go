@@ -9,6 +9,8 @@ import (
 	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/db"
+	"github.com/dukerupert/dd/internal/types"
+	"github.com/dukerupert/dd/views"
 	"github.com/labstack/echo/v4"
 )
 
@@ -20,24 +22,112 @@ type createRecordRequest struct {
 	Condition string `json:"condition" validate:"required,oneof=Mint Near-Mint Very-Good Good Fair Poor"`
 }
 
+type GetUserRecordsParams struct {
+    UserID     int64
+    Search     sql.NullString
+    Genre      sql.NullString
+    SortBy     string
+    SortOrder  string
+    Limit      int32
+    Offset     int32
+}
+
+type GetUserRecordsCountParams struct {
+    UserID     int64
+    Search     sql.NullString
+    Genre      sql.NullString
+}
+
+const recordsPerPage = 12
+
 func (app *application) getAllRecords(c echo.Context) error {
-	// Get user ID from context
+    // Get user ID from context
 	userID, err := auth.GetUserID(c)
 	if err != nil {
 		return err
 	}
 
-	records, err := app.queries.ListRecords(context.Background(), userID)
-	if err != nil {
-		return api.NewDatabaseError(err)
-	}
+    // Get query parameters
+    page, _ := strconv.Atoi(c.QueryParam("page"))
+    if page < 1 {
+        page = 1
+    }
+    
+    search := c.QueryParam("search")
+    sort := c.QueryParam("sort")
+    genre := c.QueryParam("genre")
+
+    // Parse sort parameter
+    sortBy := "created_at"
+    sortOrder := "desc"
+    if sort != "" {
+        switch sort {
+        case "album_asc":
+            sortBy, sortOrder = "album", "asc"
+        case "album_desc":
+            sortBy, sortOrder = "album", "desc"
+        case "artist_asc":
+            sortBy, sortOrder = "artist", "asc"
+        case "artist_desc":
+            sortBy, sortOrder = "artist", "desc"
+        case "year_asc":
+            sortBy, sortOrder = "year", "asc"
+        case "year_desc":
+            sortBy, sortOrder = "year", "desc"
+        }
+    }
+
+    // Calculate offset
+    offset := int64((page - 1) * recordsPerPage)
+
+    // Get records from database
+    records, err := app.queries.GetUserRecords(c.Request().Context(), db.GetUserRecordsParams{
+		UserID: userID,
+		Column4: search != "", // boolean to enable/disable search
+		Artist: "%" + search + "%",
+		Album:  "%" + search + "%",
+		Genre:  genre,
+		Limit:  recordsPerPage,
+		Offset: offset,
+	})
+    if err != nil {
+        return err
+    }
+
+    // Get total count for pagination
+    total, err := app.queries.GetUserRecordsCount(c.Request().Context(), db.GetUserRecordsCountParams{
+		UserID: userID,
+		Column4: search != "", // boolean to enable/disable search
+		Artist: "%" + search + "%",
+		Album:  "%" + search + "%",
+		Genre:  genre,
+	})
+    if err != nil {
+        return err
+    }
+
+    totalPages := (int(total) + recordsPerPage - 1) / recordsPerPage
 
 	app.logger.Debug().
 		Int64("user_id", userID).
 		Int("count", len(records)).
 		Msg("Records retrieved")
 	
-	return c.JSON(http.StatusOK, records)
+	// If this is a JSON request, retern JSON
+	if c.Request().Header.Get("Content-Type") == "application/json" {
+		return c.JSON(http.StatusOK, records)
+	}
+
+    // Otherwise render the full page
+    return views.Records(types.RecordsPage{
+		Records:     records,
+		CurrentPage: page,
+		TotalPages:  totalPages,
+		SortBy:      sortBy,
+		SortOrder:   sortOrder,
+		Genre:       genre,
+		Search:      search,
+	}).Render(c.Request().Context(), c.Response().Writer)
 }
 
 func (app *application) getRecord(c echo.Context) error {

@@ -1,0 +1,67 @@
+package views
+
+import (
+    "github.com/dukerupert/dd/internal/types"
+)
+
+templ base(p types.Page) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ p.Title } - Vinyl Collection</title>
+			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+			<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet"/>
+			<style>
+                [x-cloak] { display: none !important; }
+            </style>
+		</head>
+		<body class="bg-gray-100 min-h-screen">
+			<nav class="bg-indigo-600 text-white shadow-lg">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="flex justify-between h-16">
+						<div class="flex">
+							<a href="/" class="flex items-center font-bold">
+								Vinyl Collection
+							</a>
+						</div>
+						<div class="flex items-center">
+							if p.User != nil {
+								<a href="/records" class="px-3 py-2 hover:text-gray-200">My Records</a>
+								<a href="/profile" class="px-3 py-2 hover:text-gray-200">Profile</a>
+								<button
+									hx-post="/logout"
+									hx-push-url="true"
+									class="px-3 py-2 hover:text-gray-200"
+								>
+									Logout
+								</button>
+							} else {
+								<a href="/login" class="px-3 py-2 hover:text-gray-200">Login</a>
+								<a href="/register" class="px-3 py-2 hover:text-gray-200">Register</a>
+							}
+						</div>
+					</div>
+				</div>
+			</nav>
+			if p.FlashMsg != nil {
+				<div
+					class={
+						"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 p-4 rounded-md",
+						templ.KV("bg-green-100 text-green-700", p.FlashMsg.Type == "success"),
+						templ.KV("bg-red-100 text-red-700", p.FlashMsg.Type == "error"),
+						templ.KV("bg-blue-100 text-blue-700", p.FlashMsg.Type == "info"),
+					}
+					hx-swap-oob="true"
+					id="flash-message"
+				>
+					{ p.FlashMsg.Message }
+				</div>
+			}
+			<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
