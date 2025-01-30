@@ -23,7 +23,7 @@
 - [x] Add email service integration
 - [ ] Add user profile management
 - [x] Implement refresh token functionality
-- [ ] Add email verification
+- [x] Add email verification
 
 ## Phase 3: Frontend Development
 - [ ] Set up HTML templates with Go templating engine

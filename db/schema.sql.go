@@ -11,6 +11,35 @@ import (
 	"time"
 )
 
+const createEmailVerification = `-- name: CreateEmailVerification :one
+INSERT INTO email_verifications (
+    user_id, token, expires_at
+) VALUES (
+    ?, ?, ?
+)
+RETURNING id, user_id, token, expires_at, created_at, used_at
+`
+
+type CreateEmailVerificationParams struct {
+	UserID    int64     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreateEmailVerification(ctx context.Context, arg CreateEmailVerificationParams) (EmailVerification, error) {
+	row := q.db.QueryRowContext(ctx, createEmailVerification, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i EmailVerification
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UsedAt,
+	)
+	return i, err
+}
+
 const createPasswordReset = `-- name: CreatePasswordReset :one
 INSERT INTO password_resets (
     user_id, token, expires_at
@@ -143,6 +172,50 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteUserByEmail = `-- name: DeleteUserByEmail :exec
+DELETE FROM users WHERE email = ?
+`
+
+func (q *Queries) DeleteUserByEmail(ctx context.Context, email string) error {
+	_, err := q.db.ExecContext(ctx, deleteUserByEmail, email)
+	return err
+}
+
+const getEmailVerificationByToken = `-- name: GetEmailVerificationByToken :one
+SELECT ev.id, ev.user_id, ev.token, ev.expires_at, ev.created_at, ev.used_at, u.email 
+FROM email_verifications ev
+JOIN users u ON ev.user_id = u.id
+WHERE ev.token = ? 
+  AND ev.expires_at > datetime('now')
+  AND ev.used_at IS NULL
+LIMIT 1
+`
+
+type GetEmailVerificationByTokenRow struct {
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	CreatedAt time.Time    `json:"created_at"`
+	UsedAt    sql.NullTime `json:"used_at"`
+	Email     string       `json:"email"`
+}
+
+func (q *Queries) GetEmailVerificationByToken(ctx context.Context, token string) (GetEmailVerificationByTokenRow, error) {
+	row := q.db.QueryRowContext(ctx, getEmailVerificationByToken, token)
+	var i GetEmailVerificationByTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UsedAt,
+		&i.Email,
+	)
+	return i, err
+}
+
 const getPasswordResetByToken = `-- name: GetPasswordResetByToken :one
 SELECT pr.id, pr.user_id, pr.token, pr.expires_at, pr.created_at, pr.used_at, u.email 
 FROM password_resets pr
@@ -245,6 +318,19 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const isEmailVerified = `-- name: IsEmailVerified :one
+SELECT verified_at IS NOT NULL as is_verified
+FROM users
+WHERE id = ?
+`
+
+func (q *Queries) IsEmailVerified(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isEmailVerified, id)
+	var is_verified bool
+	err := row.Scan(&is_verified)
+	return is_verified, err
+}
+
 const listRecords = `-- name: ListRecords :many
 SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records 
 WHERE user_id = ? 
@@ -282,6 +368,28 @@ func (q *Queries) ListRecords(ctx context.Context, userID int64) ([]Record, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const markEmailVerificationUsed = `-- name: MarkEmailVerificationUsed :exec
+UPDATE email_verifications
+SET used_at = CURRENT_TIMESTAMP
+WHERE token = ?
+`
+
+func (q *Queries) MarkEmailVerificationUsed(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, markEmailVerificationUsed, token)
+	return err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :exec
+UPDATE users
+SET verified_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markEmailVerified, id)
+	return err
 }
 
 const markPasswordResetUsed = `-- name: MarkPasswordResetUsed :exec

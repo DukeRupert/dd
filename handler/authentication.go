@@ -42,6 +42,10 @@ type tokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type resendVerificationRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 func (app *application) registerUser(c echo.Context) error {
 	var req registerUserRequest
 	if err := c.Bind(&req); err != nil {
@@ -68,16 +72,22 @@ func (app *application) registerUser(c echo.Context) error {
 	}
 
 	// Create user
-	params := db.CreateUserParams{
+	user, err := app.queries.CreateUser(context.Background(), db.CreateUserParams{
 		Email:        req.Email,
 		PasswordHash: string(hashedPassword),
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
-	}
-
-	user, err := app.queries.CreateUser(context.Background(), params)
+	})
 	if err != nil {
 		return api.NewDatabaseError(err)
+	}
+
+	// Send verification email
+	if app.mailer != nil {
+		if err := app.sendVerificationEmail(user.ID, user.Email); err != nil {
+			app.logger.Error().Err(err).Msg("Failed to send verification email")
+			// Continue registration process even if email fails
+		}
 	}
 
 	// Generate JWT token
@@ -91,7 +101,6 @@ func (app *application) registerUser(c echo.Context) error {
 		Str("email", user.Email).
 		Msg("User registered successfully")
 
-	// Return user data and token
 	return c.JSON(http.StatusCreated, echo.Map{
 		"user": userResponse{
 			ID:        user.ID,
@@ -229,5 +238,113 @@ func (app *application) refreshToken(c echo.Context) error {
 	return c.JSON(http.StatusOK, tokenResponse{
 		Token:        newToken,
 		RefreshToken: newRefreshToken,
+	})
+}
+
+func (app *application) sendVerificationEmail(userID int64, email string) error {
+	// Generate verification token
+	token, err := generateResetToken() // Using the same secure token generator we use for password resets
+	if err != nil {
+		return fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	// Store verification token
+	expiresAt := time.Now().Add(24 * time.Hour)
+	_, err = app.queries.CreateEmailVerification(context.Background(), db.CreateEmailVerificationParams{
+		UserID:    userID,
+		Token:     token,
+		ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create verification: %w", err)
+	}
+
+	// Create verification link
+	verificationLink := fmt.Sprintf("%s/verify-email?token=%s", app.config.BaseURL, token)
+
+	// Send verification email
+	if err := app.mailer.SendVerificationEmail(email, verificationLink); err != nil {
+		return fmt.Errorf("failed to send verification email: %w", err)
+	}
+
+	return nil
+}
+
+func (app *application) resendVerificationEmail(c echo.Context) error {
+	var req resendVerificationRequest
+	if err := c.Bind(&req); err != nil {
+		return api.NewBadRequestError("invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+
+	// Get user by email
+	user, err := app.queries.GetUserByEmail(context.Background(), req.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Don't reveal whether the email exists
+			return c.NoContent(http.StatusAccepted)
+		}
+		return api.NewDatabaseError(err)
+	}
+
+	// Check if already verified
+	isVerified, err := app.queries.IsEmailVerified(context.Background(), user.ID)
+	if err != nil {
+		return api.NewDatabaseError(err)
+	}
+
+	if isVerified {
+		return api.NewBadRequestError("email already verified")
+	}
+
+	// Send verification email
+	if err := app.sendVerificationEmail(user.ID, user.Email); err != nil {
+		app.logger.Error().Err(err).Msg("Failed to send verification email")
+		return api.NewInternalError(err)
+	}
+
+	app.logger.Info().
+		Int64("user_id", user.ID).
+		Str("email", user.Email).
+		Msg("Verification email resent")
+
+	return c.NoContent(http.StatusAccepted)
+}
+
+func (app *application) verifyEmail(c echo.Context) error {
+	token := c.QueryParam("token")
+	if token == "" {
+		return api.NewBadRequestError("missing verification token")
+	}
+
+	// Get verification by token
+	verification, err := app.queries.GetEmailVerificationByToken(context.Background(), token)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return api.NewBadRequestError("invalid or expired verification token")
+		}
+		return api.NewDatabaseError(err)
+	}
+
+	// Mark email as verified
+	if err := app.queries.MarkEmailVerified(context.Background(), verification.UserID); err != nil {
+		return api.NewDatabaseError(err)
+	}
+
+	// Mark verification token as used
+	if err := app.queries.MarkEmailVerificationUsed(context.Background(), token); err != nil {
+		app.logger.Error().Err(err).Msg("Failed to mark verification token as used")
+		// Continue since email was verified successfully
+	}
+
+	app.logger.Info().
+		Int64("user_id", verification.UserID).
+		Msg("Email verified successfully")
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"message": "Email verified successfully",
 	})
 }

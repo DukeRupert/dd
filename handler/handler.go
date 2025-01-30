@@ -5,6 +5,7 @@ import (
 
 	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/auth"
+	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/db"
 	"github.com/dukerupert/dd/email"
 	"github.com/dukerupert/dd/ratelimit"
@@ -15,6 +16,7 @@ import (
 )
 
 type Config struct {
+	Config		config.Config
 	Queries     *db.Queries
 	Logger      zerolog.Logger
 	Auth        *auth.Manager
@@ -23,6 +25,7 @@ type Config struct {
 }
 
 type application struct {
+	config		config.Config
 	queries     *db.Queries
 	logger      zerolog.Logger
 	auth        *auth.Manager
@@ -32,6 +35,7 @@ type application struct {
 
 func NewHandler(cfg Config) *application {
 	return &application{
+		config:		 cfg.Config,
 		queries:     cfg.Queries,
 		logger:      cfg.Logger,
 		auth:        cfg.Auth,
@@ -49,7 +53,6 @@ func (app *application) ApplyMiddleware(e *echo.Echo) {
 }
 
 func (app *application) CreateRoutes(e *echo.Echo) {
-
 	// Public routes
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to Vinyl Collection API")
@@ -59,6 +62,8 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 	e.POST("/refresh", app.refreshToken)
 	e.POST("/forgot-password", app.requestPasswordReset)
 	e.POST("/reset-password", app.resetPassword)
+	e.GET("/verify-email", app.verifyEmail)
+	e.POST("/resend-verification", app.resendVerificationEmail)
 
 	// Protected routes
 	protected := e.Group("")
@@ -70,5 +75,10 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 	protected.POST("/records", app.createRecord)
 	protected.PUT("/records/:id", app.updateRecord)
 	protected.DELETE("/records/:id", app.deleteRecord) // Middleware - order is important
+
+	// Development routes
+	if app.config.AppEnv == "development" {
+		e.DELETE("/dev/users", app.deleteUserByEmail)
+	}
 
 }

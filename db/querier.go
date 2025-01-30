@@ -9,18 +9,24 @@ import (
 )
 
 type Querier interface {
+	CreateEmailVerification(ctx context.Context, arg CreateEmailVerificationParams) (EmailVerification, error)
 	CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error)
 	CreateRecord(ctx context.Context, arg CreateRecordParams) (Record, error)
 	// User queries
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteRecord(ctx context.Context, arg DeleteRecordParams) error
 	DeleteUser(ctx context.Context, id int64) error
+	DeleteUserByEmail(ctx context.Context, email string) error
+	GetEmailVerificationByToken(ctx context.Context, token string) (GetEmailVerificationByTokenRow, error)
 	GetPasswordResetByToken(ctx context.Context, token string) (GetPasswordResetByTokenRow, error)
 	// Record queries
 	GetRecord(ctx context.Context, arg GetRecordParams) (Record, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
+	IsEmailVerified(ctx context.Context, id int64) (bool, error)
 	ListRecords(ctx context.Context, userID int64) ([]Record, error)
+	MarkEmailVerificationUsed(ctx context.Context, token string) error
+	MarkEmailVerified(ctx context.Context, id int64) error
 	MarkPasswordResetUsed(ctx context.Context, token string) error
 	UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Record, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)

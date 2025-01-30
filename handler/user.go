@@ -149,3 +149,34 @@ func (app *application) resetPassword(c echo.Context) error {
 
 	return c.NoContent(http.StatusOK)
 }
+
+type deleteUserRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+func (app *application) deleteUserByEmail(c echo.Context) error {
+	// Only allow in development environment
+	if app.config.AppEnv != "development" {
+		return api.NewNotFoundError("route not found")
+	}
+
+	var req deleteUserRequest
+	if err := c.Bind(&req); err != nil {
+		return api.NewBadRequestError("invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+
+	err := app.queries.DeleteUserByEmail(context.Background(), req.Email)
+	if err != nil {
+		return api.NewDatabaseError(err)
+	}
+
+	app.logger.Info().
+		Str("email", req.Email).
+		Msg("User deleted for testing purposes")
+
+	return c.NoContent(http.StatusNoContent)
+}

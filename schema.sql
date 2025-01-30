@@ -21,10 +21,18 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_records_user_id ON records(user_id);
-
 CREATE TABLE password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    used_at DATETIME,
+    UNIQUE(token)
+);
+
+-- Create email_verifications table
+CREATE TABLE email_verifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL,
@@ -101,6 +109,9 @@ WHERE id = ?;
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;
 
+-- name: DeleteUserByEmail :exec
+DELETE FROM users WHERE email = ?;
+
 -- name: CreatePasswordReset :one
 INSERT INTO password_resets (
     user_id, token, expires_at
@@ -122,3 +133,35 @@ LIMIT 1;
 UPDATE password_resets
 SET used_at = CURRENT_TIMESTAMP
 WHERE token = ?;
+
+-- name: CreateEmailVerification :one
+INSERT INTO email_verifications (
+    user_id, token, expires_at
+) VALUES (
+    ?, ?, ?
+)
+RETURNING *;
+
+-- name: GetEmailVerificationByToken :one
+SELECT ev.*, u.email 
+FROM email_verifications ev
+JOIN users u ON ev.user_id = u.id
+WHERE ev.token = ? 
+  AND ev.expires_at > datetime('now')
+  AND ev.used_at IS NULL
+LIMIT 1;
+
+-- name: MarkEmailVerificationUsed :exec
+UPDATE email_verifications
+SET used_at = CURRENT_TIMESTAMP
+WHERE token = ?;
+
+-- name: MarkEmailVerified :exec
+UPDATE users
+SET verified_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: IsEmailVerified :one
+SELECT verified_at IS NOT NULL as is_verified
+FROM users
+WHERE id = ?;
