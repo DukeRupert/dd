@@ -19,7 +19,6 @@ type Config struct {
 	Config		config.Config
 	Queries     *db.Queries
 	Logger      zerolog.Logger
-	Auth        *auth.Manager
 	RateLimiter *ratelimit.RateLimiter
 	Mailer      *email.Client
 }
@@ -28,7 +27,6 @@ type application struct {
 	config		config.Config
 	queries     *db.Queries
 	logger      zerolog.Logger
-	auth        *auth.Manager
 	rateLimiter *ratelimit.RateLimiter
 	mailer      *email.Client
 }
@@ -38,7 +36,6 @@ func NewHandler(cfg Config) *application {
 		config:		 cfg.Config,
 		queries:     cfg.Queries,
 		logger:      cfg.Logger,
-		auth:        cfg.Auth,
 		rateLimiter: cfg.RateLimiter,
 		mailer:      cfg.Mailer,
 	}
@@ -58,8 +55,8 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 		return c.String(http.StatusOK, "Welcome to Vinyl Collection API")
 	})
 	e.POST("/register", app.registerUser)
+	e.GET("/login", app.showLogin)
 	e.POST("/login", app.loginUser)
-	e.POST("/refresh", app.refreshToken)
 	e.POST("/forgot-password", app.requestPasswordReset)
 	e.POST("/reset-password", app.resetPassword)
 	e.GET("/verify-email", app.verifyEmail)
@@ -67,7 +64,7 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 
 	// Protected routes
 	protected := e.Group("")
-	protected.Use(app.auth.Middleware())
+	protected.Use(auth.Middleware())
 
 	// Record endpoints
 	protected.GET("/records", app.getAllRecords)

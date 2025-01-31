@@ -8,8 +8,11 @@ import (
 )
 
 type Config struct {
+	// Database
+	DatabaseURL string
+
 	// Authentication
-	JWTSecret string
+	SessionSecret string
 
 	// Email
 	PostmarkServerToken string
@@ -32,17 +35,12 @@ func Load() (*Config, error) {
 		fmt.Println(".env file loaded successfully")
 	}
 
-	// Print all relevant environment variables for debugging
-	fmt.Println("\nEnvironment Variables:")
-	fmt.Printf("JWT_SECRET: %s\n", maskSecret(os.Getenv("JWT_SECRET")))
-	fmt.Printf("POSTMARK_SERVER_TOKEN: %s\n", maskSecret(os.Getenv("POSTMARK_SERVER_TOKEN")))
-	fmt.Printf("FROM_EMAIL: %s\n", os.Getenv("FROM_EMAIL"))
-	fmt.Printf("APP_ENV: %s\n", os.Getenv("APP_ENV"))
-	fmt.Printf("BASE_URL: %s\n", os.Getenv("BASE_URL"))
-
 	config := &Config{
 		// Authentication
-		JWTSecret: os.Getenv("JWT_SECRET"),
+		DatabaseURL: os.Getenv("DB_URL"),
+
+		// Authentication
+		SessionSecret: os.Getenv("SESSION_SECRET"),
 
 		// Email
 		PostmarkServerToken: os.Getenv("POSTMARK_SERVER_TOKEN"),
@@ -61,26 +59,21 @@ func Load() (*Config, error) {
 	return config, nil
 }
 
-// maskSecret returns a masked version of a secret string
-func maskSecret(s string) string {
-	if s == "" {
-		return "[empty]"
-	}
-	if len(s) <= 4 {
-		return "****"
-	}
-	return s[:4] + "****"
-}
-
 func (c *Config) Validate() error {
 	fmt.Println("\nValidating Configuration:")
 
 	// Required configurations
-	if c.JWTSecret == "" {
-		fmt.Println("❌ JWT_SECRET is missing")
-		return fmt.Errorf("JWT_SECRET is required")
+	if c.DatabaseURL == "" {
+		fmt.Println("❌ DB_URL is missing")
+		return fmt.Errorf("DB_URL is required")
 	}
-	fmt.Println("✓ JWT_SECRET is set")
+	fmt.Println("✓ DB_URL is set")
+
+	if c.SessionSecret == "" {
+		fmt.Println("❌ SESSION_SECRET is missing")
+		return fmt.Errorf("SESSION_SECRET is required")
+	}
+	fmt.Println("✓ SESSION_SECRET is set")
 
 	// Optional configurations with defaults
 	if c.AppEnv == "" {

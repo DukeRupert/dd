@@ -81,18 +81,15 @@ func (app *application) getAllRecords(c echo.Context) error {
     offset := int64((page - 1) * recordsPerPage)
 
     // Get records from database
-    records, err := app.queries.GetUserRecords(c.Request().Context(), db.GetUserRecordsParams{
+	records, err := app.queries.GetUserRecords(c.Request().Context(), db.GetUserRecordsParams{
 		UserID: userID,
-		Column4: search != "", // boolean to enable/disable search
+		Column4: search != "",
 		Artist: "%" + search + "%",
 		Album:  "%" + search + "%",
 		Genre:  genre,
 		Limit:  recordsPerPage,
 		Offset: offset,
 	})
-    if err != nil {
-        return err
-    }
 
     // Get total count for pagination
     total, err := app.queries.GetUserRecordsCount(c.Request().Context(), db.GetUserRecordsCountParams{

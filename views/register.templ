@@ -1,0 +1,109 @@
+package views
+
+type RegisterData struct {
+	ErrorMessage string
+}
+
+templ RegisterPage(data RegisterData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Register - Vinyl Collection</title>
+			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+			<script>
+                htmx.on('htmx:responseError', function(evt) {
+                    const errorDiv = document.getElementById('error-message');
+                    if (errorDiv) {
+                        errorDiv.textContent = evt.detail.error;
+                        errorDiv.classList.remove('hidden');
+                    }
+                });
+
+				htmx.on('htmx:beforeRequest', function(evt) {
+                    evt.detail.headers['Content-Type'] = 'application/json';
+                    const formData = new FormData(evt.detail.elt);
+                    evt.detail.requestData = JSON.stringify({
+                        email: formData.get('email'),
+                        password: formData.get('password')
+                    });
+                });
+
+                htmx.on('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.xhr.responseText) {
+                        try {
+                            const response = JSON.parse(evt.detail.xhr.responseText);
+                            if (response.token) {
+                                localStorage.setItem('jwt', response.token);
+                                localStorage.setItem('refresh_token', response.refresh_token);
+								htmx.config.defaultHeaders = {
+                                    'Authorization': 'Bearer ' + response.token
+                                };
+                                window.location.href = '/records';
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse response:', e);
+                        }
+                    }
+                });
+            </script>
+			<link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet"/>
+		</head>
+		<body class="bg-gray-100">
+			<div class="min-h-screen flex items-center justify-center">
+				<div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+					<h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+					@RegisterForm(data)
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+templ RegisterForm(data RegisterData) {
+	<form
+		hx-post="/register"
+		hx-target="this"
+		hx-swap="outerHTML"
+		class="space-y-6"
+	>
+		<div>
+			<label for="email" class="block text-sm/6 font-medium text-gray-900">Email</label>
+			<input
+				type="email"
+				id="email"
+				name="email"
+				required
+				class="block w-full rounded-md bg-white mt-2 px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+			/>
+		</div>
+		<div>
+			<div class="flex items-center justify-between">
+				<label for="password" class="block text-sm/6 font-medium text-gray-900">Password</label>
+				<div class="text-sm">
+					<a href="#" class="font-semibold text-indigo-600 hover:text-indigo-500">Forgot password?</a>
+				</div>
+			</div>
+			<input
+				type="password"
+				id="password"
+				name="password"
+				required
+				minlength="8"
+				class="block w-full rounded-md bg-white mt-2 px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+			/>
+		</div>
+		<div id="error-message" class="text-red-500 text-sm">
+			if data.ErrorMessage != "" {
+				{ data.ErrorMessage }
+			}
+		</div>
+		<button
+			type="submit"
+			class="w-full bg-blue-600 text-white rounded-md py-2 px-4 hover:bg-blue-700"
+		>
+			Login
+		</button>
+	</form>
+}

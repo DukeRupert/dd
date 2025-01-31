@@ -324,15 +324,13 @@ WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?)
     AND (? OR genre = ?)
 ORDER BY 
-    CASE @sort_order 
-        WHEN 'artist_asc' THEN artist 
-        WHEN 'artist_desc' THEN artist END DESC,
-    CASE @sort_order 
-        WHEN 'album_asc' THEN album 
-        WHEN 'album_desc' THEN album END DESC,
-    CASE @sort_order 
-        WHEN 'year_asc' THEN year 
-        WHEN 'year_desc' THEN year END DESC,
+    CASE WHEN ? IN ('artist_asc', 'album_asc', 'year_asc') THEN
+        CASE ?
+            WHEN 'artist_asc' THEN artist
+            WHEN 'album_asc' THEN album
+            WHEN 'year_asc' THEN year
+        END
+    END ASC,
     created_at DESC
 LIMIT ? OFFSET ?
 `

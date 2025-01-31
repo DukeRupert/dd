@@ -1,44 +1,32 @@
 package auth
 
 import (
-	"strings"
-
 	"github.com/dukerupert/dd/api"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 )
 
 // Middleware creates a new auth middleware
-func (m *Manager) Middleware() echo.MiddlewareFunc {
+func Middleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Get token from Authorization header
-			authHeader := c.Request().Header.Get("Authorization")
-			if authHeader == "" {
-				return api.NewUnauthorizedError("missing authorization header")
-			}
-
-			// Check if the header has the correct format
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				return api.NewUnauthorizedError("invalid authorization header format")
-			}
-
-			// Validate the token
-			claims, err := m.ValidateToken(parts[1])
+			sess, err := session.Get("session", c)
 			if err != nil {
-				switch err {
-				case ErrExpiredToken:
-					return api.NewUnauthorizedError("token has expired")
-				case ErrInvalidToken:
-					return api.NewUnauthorizedError("invalid token")
-				default:
-					return api.NewUnauthorizedError("authentication failed")
-				}
+				return api.NewUnauthorizedError("invalid session")
 			}
 
-			// Set user information in context
-			c.Set("user_id", claims.UserID)
-			c.Set("email", claims.Email)
+			userID, ok := sess.Values["user_id"].(int64)
+			if !ok {
+				return api.NewUnauthorizedError("unauthorized")
+			}
+
+			email, ok := sess.Values["email"].(string)
+			if !ok {
+				return api.NewUnauthorizedError("unauthorized")
+			}
+
+			c.Set("user_id", userID)
+			c.Set("email", email)
 
 			return next(c)
 		}

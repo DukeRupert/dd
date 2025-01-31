@@ -46,7 +46,7 @@ func base(p types.Page) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - Vinyl Collection</title><script src=\"https://unpkg.com/htmx.org@1.9.10\"></script><link href=\"https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css\" rel=\"stylesheet\"><style>\n                [x-cloak] { display: none !important; }\n            </style></head><body class=\"bg-gray-100 min-h-screen\"><nav class=\"bg-indigo-600 text-white shadow-lg\"><div class=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\"><div class=\"flex justify-between h-16\"><div class=\"flex\"><a href=\"/\" class=\"flex items-center font-bold\">Vinyl Collection</a></div><div class=\"flex items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - Vinyl Collection</title><script src=\"https://unpkg.com/htmx.org@2.0.4\"></script><link href=\"https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css\" rel=\"stylesheet\"><style>\n                [x-cloak] { display: none !important; }\n            </style></head><body class=\"bg-gray-100 min-h-screen\"><nav class=\"bg-indigo-600 text-white shadow-lg\"><div class=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\"><div class=\"flex justify-between h-16\"><div class=\"flex\"><a href=\"/\" class=\"flex items-center font-bold\">Vinyl Collection</a></div><div class=\"flex items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

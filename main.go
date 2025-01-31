@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/dukerupert/dd/api"
-	"github.com/dukerupert/dd/auth"
 	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/db"
 	"github.com/dukerupert/dd/email"
@@ -33,20 +32,27 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
 
+	// Create Echo instance
+	e := echo.New()
+	e.HideBanner = true
+
+	// Initialize validator
+	e.Validator = api.NewValidator()
+
 	// Initialize logger
 	logger := log.With().Str("component", "main").Logger()
 
 	// Initialize database with migrations
-	sqlite, err := config.InitializeDatabase()
+	sqlite, err := config.InitializeDatabase(cfg.DatabaseURL)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize database")
 	}
 	defer sqlite.Close()
 
-	// Initialize auth manager
-	authConfig := auth.DefaultConfig()
-	authConfig.SecretKey = cfg.JWTSecret
-	authManager := auth.NewManager(authConfig)
+	// Configure sessions
+    if err := config.ConfigureSessions(e, cfg.DatabaseURL, cfg.SessionSecret); err != nil {
+        logger.Fatal().Err(err).Msg("Failed to configure sessions")
+    }
 
 	// Initialize rate limiter (5 attempts per 15 minutes)
 	rateLimiter := ratelimit.New(5, 15*time.Minute)
@@ -74,20 +80,11 @@ func main() {
 	appConfig := handler.Config{
 		Queries:     db.New(sqlite),
 		Logger:      logger,
-		Auth:        authManager,
 		RateLimiter: rateLimiter,
 		Mailer:      emailClient,
 	}
 
 	app := handler.NewHandler(appConfig)
-
-	// Create Echo instance
-	e := echo.New()
-	e.HideBanner = true
-
-	// Initialize validator
-	e.Validator = api.NewValidator()
-
 	app.ApplyMiddleware(e)
 	app.CreateRoutes(e)
 

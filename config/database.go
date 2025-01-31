@@ -53,11 +53,11 @@ func runMigrations(db *sql.DB) error {
 	return nil
 }
 
-func InitializeDatabase() (*sql.DB, error) {
+func InitializeDatabase(dbPath string) (*sql.DB, error) {
 	logger := log.With().Str("component", "database").Logger()
 	logger.Info().Msg("Initializing database")
 
-	db, err := sql.Open("sqlite3", "vinyl.db")
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to open database")
 		return nil, err
