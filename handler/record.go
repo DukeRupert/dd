@@ -185,6 +185,123 @@ func (app *application) createRecord(c echo.Context) error {
 	return c.JSON(http.StatusCreated, record)
 }
 
+func (app *application) updateRecord(c echo.Context) error {
+	// Get user ID from auth
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Not authenticated")
+	}
+
+	// Get user
+	user, err := app.queries.GetUserByID(c.Request().Context(), userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "No user found")
+	}
+
+	// Get record ID from URL parameter
+	recordID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid record ID")
+	}
+
+	// Check if record exists and belongs to user
+	existingRecord, err := app.queries.GetRecord(c.Request().Context(), db.GetRecordParams{
+		ID:     recordID,
+		UserID: userID,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Record not found")
+	}
+	if existingRecord.UserID != userID {
+		return echo.NewHTTPError(http.StatusForbidden, "Not authorized to update this record")
+	}
+
+	// Parse form data
+	record := db.Record{
+		ID:        recordID,
+		Artist:    c.FormValue("artist"),
+		Album:     c.FormValue("album"),
+		Genre:     c.FormValue("genre"),
+		Condition: c.FormValue("condition"),
+		UserID:    user.ID,
+	}
+
+	// Parse and validate year
+	year, err := strconv.ParseInt(c.FormValue("year"), 10, 64)
+	if err != nil {
+		return views.RecordForm(types.RecordFormPage{
+			Page: types.Page{
+				Title: "Edit Record",
+				User:  &user,
+			},
+			Record: &record,
+			FormError: map[string]string{
+				"year": "Invalid year format",
+			},
+		}).Render(c.Request().Context(), c.Response().Writer)
+	}
+	record.Year = year
+
+	// Validate input
+	formErrors := make(map[string]string)
+	if record.Artist == "" {
+		formErrors["artist"] = "Artist is required"
+	}
+	if record.Album == "" {
+		formErrors["album"] = "Album is required"
+	}
+	if record.Year < 1900 || record.Year > 2024 {
+		formErrors["year"] = "Year must be between 1900 and 2024"
+	}
+	if record.Genre == "" {
+		formErrors["genre"] = "Genre is required"
+	}
+	if record.Condition == "" {
+		formErrors["condition"] = "Condition is required"
+	}
+
+	if len(formErrors) > 0 {
+		return views.RecordForm(types.RecordFormPage{
+			Page: types.Page{
+				Title: "Edit Record",
+				User:  &user,
+			},
+			Record:    &record,
+			FormError: formErrors,
+		}).Render(c.Request().Context(), c.Response().Writer)
+	}
+
+	// Update record in database
+	updatedRecord, err := app.queries.UpdateRecord(c.Request().Context(), db.UpdateRecordParams{
+		ID:        recordID,
+		UserID:    record.UserID,
+		Artist:    record.Artist,
+		Album:     record.Album,
+		Year:      record.Year,
+		Genre:     record.Genre,
+		Condition: record.Condition,
+	})
+	if err != nil {
+		app.logger.Error().Err(err).Msg("Failed to update record")
+		return err
+	}
+
+	app.logger.Info().
+		Int64("id", recordID).
+		Int64("user_id", userID).
+		Str("artist", record.Artist).
+		Str("album", record.Album).
+		Msg("Record updated")
+
+	if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
+		c.Response().Header().Set("HX-Redirect", "/records")
+		return nil
+	}
+
+	// Return updated record
+	return c.JSON(http.StatusOK, updatedRecord)
+}
+
 func (app *application) getAllRecords(c echo.Context) error {
 	// Get user ID from context
 	userID, err := auth.GetUserID(c)
@@ -302,56 +419,6 @@ func (app *application) getRecord(c echo.Context) error {
 		}
 		return api.NewDatabaseError(err)
 	}
-
-	return c.JSON(http.StatusOK, record)
-}
-
-func (app *application) updateRecord(c echo.Context) error {
-	// Get user ID from context
-	userID, err := auth.GetUserID(c)
-	if err != nil {
-		return err
-	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		return api.NewBadRequestError("invalid id format")
-	}
-
-	var req createRecordRequest
-	if err := c.Bind(&req); err != nil {
-		return api.NewBadRequestError("invalid request body")
-	}
-
-	// Validate the request
-	if err := c.Validate(&req); err != nil {
-		return err // Our custom validator already returns an api.ValidationError
-	}
-
-	params := db.UpdateRecordParams{
-		ID:        id,
-		UserID:    userID,
-		Artist:    req.Artist,
-		Album:     req.Album,
-		Year:      req.Year,
-		Genre:     req.Genre,
-		Condition: req.Condition,
-	}
-
-	record, err := app.queries.UpdateRecord(context.Background(), params)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return api.NewNotFoundError("record")
-		}
-		return api.NewDatabaseError(err)
-	}
-
-	app.logger.Info().
-		Int64("id", record.ID).
-		Int64("user_id", userID).
-		Str("artist", record.Artist).
-		Str("album", record.Album).
-		Msg("Record updated")
 
 	return c.JSON(http.StatusOK, record)
 }
