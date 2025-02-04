@@ -36,7 +36,7 @@
 - [ ] Create record detail view
 - [x] Create record input form
     - [ ] Add client-side validation
-    - [ ] Implement file upload for album covers
+    - [x] Implement file upload for album covers
 - [x] Add edit/delete functionality
 - [ ] Create user dashboard
 - [ ] Add flash messages for user feedback

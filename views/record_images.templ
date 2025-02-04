@@ -1,0 +1,21 @@
+package views
+
+import (
+    "fmt"
+    "github.com/dukerupert/dd/db"
+)
+
+templ RecordImages(image db.RecordImage) {
+    <div class="relative aspect-square">
+        <img src={"/uploads/records/" + image.Filename} 
+             alt="Record image"
+             class="object-cover w-full h-full rounded-lg" />
+        <button hx-delete={"/records/images/" + fmt.Sprint(image.ID)}
+                hx-target="closest div"
+                class="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+}

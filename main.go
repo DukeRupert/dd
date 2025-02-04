@@ -35,6 +35,8 @@ func main() {
 	// Create Echo instance
 	e := echo.New()
 	e.HideBanner = true
+	e.Static("/static", "assets")
+	e.Static("/uploads", "uploads")
 
 	// Initialize validator
 	e.Validator = api.NewValidator()

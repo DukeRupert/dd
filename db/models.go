@@ -39,6 +39,13 @@ type Record struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type RecordImage struct {
+	ID        int64     `json:"id"`
+	RecordID  int64     `json:"record_id"`
+	Filename  string    `json:"filename"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type User struct {
 	ID           int64     `json:"id"`
 	Email        string    `json:"email"`

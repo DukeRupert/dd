@@ -3,8 +3,14 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/dukerupert/dd/api"
 	"github.com/dukerupert/dd/auth"
@@ -374,7 +380,7 @@ func (app *application) getAllRecords(c echo.Context) error {
 
 	// If this is an HTMX request just return the records
 	if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-		return views.Records(types.RecordsPage{
+		return views.RecordContainer(types.RecordsPage{
 			Records:     records,
 			CurrentPage: page,
 			TotalPages:  totalPages,
@@ -496,4 +502,99 @@ func (app *application) deleteRecord(c echo.Context) error {
 
 	// For non-HTMX requests, return 204 No Content
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (app *application) uploadRecordImage(c echo.Context) error {
+    userID, err := auth.GetUserID(c)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusUnauthorized, "Not authenticated")
+    }
+
+    recordID, err := strconv.ParseInt(c.FormValue("record_id"), 10, 64)
+    if err != nil {
+        return echo.NewHTTPError(http.StatusBadRequest, "Invalid record ID")
+    }
+
+    // Verify record belongs to user
+    record, err := app.queries.GetRecord(c.Request().Context(), db.GetRecordParams{
+        ID:     recordID,
+        UserID: userID,
+    })
+    if err != nil {
+        return echo.NewHTTPError(http.StatusNotFound, "Record not found")
+    }
+
+    file, err := c.FormFile("image")
+    if err != nil {
+        return echo.NewHTTPError(http.StatusBadRequest, "Failed to get image file")
+    }
+
+    // Validate file size (5MB max)
+    if file.Size > 5<<20 {
+        return echo.NewHTTPError(http.StatusBadRequest, "File too large (max 5MB)")
+    }
+
+    // Open uploaded file
+    src, err := file.Open()
+    if err != nil {
+        return err
+    }
+    defer src.Close()
+
+    // Validate file type
+    buffer := make([]byte, 512)
+    _, err = src.Read(buffer)
+    if err != nil {
+        return err
+    }
+    
+    contentType := http.DetectContentType(buffer)
+    if !strings.HasPrefix(contentType, "image/") {
+        return echo.NewHTTPError(http.StatusBadRequest, "File must be an image")
+    }
+
+    // Reset file pointer
+    src.Seek(0, 0)
+
+    // Create unique filename
+    ext := filepath.Ext(file.Filename)
+    filename := fmt.Sprintf("%d_%d%s", record.ID, time.Now().UnixNano(), ext)
+    
+    // Ensure upload directory exists
+    uploadDir := filepath.Join("uploads", "records", strconv.FormatInt(userID, 10))
+    if err := os.MkdirAll(uploadDir, 0755); err != nil {
+        return err
+    }
+
+    // Create destination file
+    dst, err := os.Create(filepath.Join(uploadDir, filename))
+    if err != nil {
+        return err
+    }
+    defer dst.Close()
+
+    // Copy file
+    if _, err = io.Copy(dst, src); err != nil {
+        return err
+    }
+
+    // Save to database
+    image, err := app.queries.CreateRecordImage(c.Request().Context(), db.CreateRecordImageParams{
+        RecordID: recordID,
+        Filename: filename,
+    })
+    if err != nil {
+        // Clean up file if database insert fails
+        os.Remove(filepath.Join(uploadDir, filename))
+        return err
+    }
+
+    app.logger.Info().
+        Int64("record_id", recordID).
+        Int64("user_id", userID).
+        Str("filename", filename).
+        Msg("Record image uploaded")
+
+    // Return partial for HTMX update
+    return views.RecordImages(image).Render(c.Request().Context(), c.Response().Writer)
 }

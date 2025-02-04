@@ -11,6 +11,14 @@ CREATE TABLE IF NOT EXISTS records (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS record_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    record_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
@@ -188,3 +196,26 @@ WHERE id = ?;
 SELECT verified_at IS NOT NULL as is_verified
 FROM users
 WHERE id = ?;
+
+-- name: CreateRecordImage :one
+INSERT INTO record_images (
+    record_id,
+    filename
+) VALUES (
+    ?,
+    ?
+) RETURNING *;
+
+-- name: GetRecordImages :many
+SELECT * FROM record_images
+WHERE record_id = ?
+ORDER BY created_at DESC;
+
+-- name: DeleteRecordImage :exec
+DELETE FROM record_images AS ri
+WHERE ri.id = ? 
+AND ri.record_id IN (
+    SELECT id 
+    FROM records AS r
+    WHERE r.user_id = ?
+);

@@ -111,6 +111,33 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 	return i, err
 }
 
+const createRecordImage = `-- name: CreateRecordImage :one
+INSERT INTO record_images (
+    record_id,
+    filename
+) VALUES (
+    ?,
+    ?
+) RETURNING id, record_id, filename, created_at
+`
+
+type CreateRecordImageParams struct {
+	RecordID int64  `json:"record_id"`
+	Filename string `json:"filename"`
+}
+
+func (q *Queries) CreateRecordImage(ctx context.Context, arg CreateRecordImageParams) (RecordImage, error) {
+	row := q.db.QueryRowContext(ctx, createRecordImage, arg.RecordID, arg.Filename)
+	var i RecordImage
+	err := row.Scan(
+		&i.ID,
+		&i.RecordID,
+		&i.Filename,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     email, password_hash, first_name, last_name
@@ -160,6 +187,26 @@ type DeleteRecordParams struct {
 
 func (q *Queries) DeleteRecord(ctx context.Context, arg DeleteRecordParams) error {
 	_, err := q.db.ExecContext(ctx, deleteRecord, arg.ID, arg.UserID)
+	return err
+}
+
+const deleteRecordImage = `-- name: DeleteRecordImage :exec
+DELETE FROM record_images AS ri
+WHERE ri.id = ? 
+AND ri.record_id IN (
+    SELECT id 
+    FROM records AS r
+    WHERE r.user_id = ?
+)
+`
+
+type DeleteRecordImageParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+func (q *Queries) DeleteRecordImage(ctx context.Context, arg DeleteRecordImageParams) error {
+	_, err := q.db.ExecContext(ctx, deleteRecordImage, arg.ID, arg.UserID)
 	return err
 }
 
@@ -278,6 +325,40 @@ func (q *Queries) GetRecord(ctx context.Context, arg GetRecordParams) (Record, e
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getRecordImages = `-- name: GetRecordImages :many
+SELECT id, record_id, filename, created_at FROM record_images
+WHERE record_id = ?
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetRecordImages(ctx context.Context, recordID int64) ([]RecordImage, error) {
+	rows, err := q.db.QueryContext(ctx, getRecordImages, recordID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RecordImage
+	for rows.Next() {
+		var i RecordImage
+		if err := rows.Scan(
+			&i.ID,
+			&i.RecordID,
+			&i.Filename,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one

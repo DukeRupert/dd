@@ -12,15 +12,18 @@ type Querier interface {
 	CreateEmailVerification(ctx context.Context, arg CreateEmailVerificationParams) (EmailVerification, error)
 	CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error)
 	CreateRecord(ctx context.Context, arg CreateRecordParams) (Record, error)
+	CreateRecordImage(ctx context.Context, arg CreateRecordImageParams) (RecordImage, error)
 	// User queries
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteRecord(ctx context.Context, arg DeleteRecordParams) error
+	DeleteRecordImage(ctx context.Context, arg DeleteRecordImageParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteUserByEmail(ctx context.Context, email string) error
 	GetEmailVerificationByToken(ctx context.Context, token string) (GetEmailVerificationByTokenRow, error)
 	GetPasswordResetByToken(ctx context.Context, token string) (GetPasswordResetByTokenRow, error)
 	// Record queries
 	GetRecord(ctx context.Context, arg GetRecordParams) (Record, error)
+	GetRecordImages(ctx context.Context, recordID int64) ([]RecordImage, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserRecords(ctx context.Context, arg GetUserRecordsParams) ([]Record, error)
