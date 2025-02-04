@@ -26,15 +26,15 @@
 - [x] Add email verification
 
 ## Phase 3: Frontend Development
-- [ ] Set up HTML templates with Go templating engine
-- [ ] Create base layout and styling (CSS)
-- [ ] Implement responsive design
-- [ ] Create record listing page
-    - [ ] Add pagination support
-    - [ ] Implement sorting functionality
-    - [ ] Add filtering options
+- [x] Set up HTML templates with Go templating engine
+- [x] Create base layout and styling (CSS)
+- [x] Implement responsive design
+- [x] Create record listing page
+    - [x] Add pagination support
+    - [x] Implement sorting functionality
+    - [x] Add filtering options
 - [ ] Create record detail view
-- [ ] Create record input form
+- [x] Create record input form
     - [ ] Add client-side validation
     - [ ] Implement file upload for album covers
 - [ ] Add edit/delete functionality
