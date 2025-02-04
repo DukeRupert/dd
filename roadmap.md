@@ -37,7 +37,7 @@
 - [x] Create record input form
     - [ ] Add client-side validation
     - [ ] Implement file upload for album covers
-- [ ] Add edit/delete functionality
+- [x] Add edit/delete functionality
 - [ ] Create user dashboard
 - [ ] Add flash messages for user feedback
 

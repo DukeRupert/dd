@@ -427,29 +427,73 @@ func (app *application) deleteRecord(c echo.Context) error {
 	// Get user ID from context
 	userID, err := auth.GetUserID(c)
 	if err != nil {
-		return err
+		app.logger.Error().Err(err).Msg("Authentication failed in delete handler")
+		return api.NewUnauthorizedError("Not authenticated")
 	}
 
+	// Get and validate record ID
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
+		app.logger.Error().
+			Err(err).
+			Str("id_param", c.Param("id")).
+			Msg("Invalid record ID format in delete request")
 		return api.NewBadRequestError("invalid id format")
 	}
 
-	err = app.queries.DeleteRecord(context.Background(), db.DeleteRecordParams{
+	// Verify record exists and belongs to user before deleting
+	record, err := app.queries.GetRecord(c.Request().Context(), db.GetRecordParams{
 		ID:     id,
 		UserID: userID,
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return api.NewNotFoundError("record")
+			app.logger.Info().
+				Int64("id", id).
+				Int64("user_id", userID).
+				Msg("Attempted to delete non-existent record")
+			return api.NewNotFoundError("record not found")
 		}
+		app.logger.Error().Err(err).Msg("Database error when fetching record")
+		return api.NewDatabaseError(err)
+	}
+
+	// Check record ownership
+	if record.UserID != userID {
+		app.logger.Warn().
+			Int64("record_id", id).
+			Int64("user_id", userID).
+			Int64("record_owner_id", record.UserID).
+			Msg("Unauthorized attempt to delete record")
+		return api.NewForbiddenError("not authorized to delete this record")
+	}
+
+	// Delete the record
+	err = app.queries.DeleteRecord(c.Request().Context(), db.DeleteRecordParams{
+		ID:     id,
+		UserID: userID,
+	})
+	if err != nil {
+		app.logger.Error().
+			Err(err).
+			Int64("id", id).
+			Int64("user_id", userID).
+			Msg("Failed to delete record")
 		return api.NewDatabaseError(err)
 	}
 
 	app.logger.Info().
 		Int64("id", id).
 		Int64("user_id", userID).
-		Msg("Record deleted")
+		Str("artist", record.Artist).
+		Str("album", record.Album).
+		Msg("Record deleted successfully")
 
+	// For HTMX requests, return 200 with empty body to remove the element
+	if c.Request().Header.Get("HX-Request") == "true" {
+		return c.String(http.StatusOK, "")
+	}
+
+	// For non-HTMX requests, return 204 No Content
 	return c.NoContent(http.StatusNoContent)
 }

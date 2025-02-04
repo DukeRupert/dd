@@ -30,6 +30,7 @@ const (
 	ErrCodeUnauthorized   = "UNAUTHORIZED"
 	ErrCodeBadRequest     = "BAD_REQUEST"
 	ErrCodeRateLimit      = "RATE_LIMIT_EXCEEDED"
+	ErrCodeForbidden      = "FORBIDDEN"
 )
 
 // AppError represents an application-specific error
@@ -110,5 +111,13 @@ func NewTooManyRequestsError(message string) *AppError {
 		Code:    ErrCodeRateLimit,
 		Message: message,
 		Status:  http.StatusTooManyRequests,
+	}
+}
+
+func NewForbiddenError(message string) *AppError {
+	return &AppError{
+		Code:    ErrCodeForbidden,
+		Message: message,
+		Status:  http.StatusForbidden,
 	}
 }
