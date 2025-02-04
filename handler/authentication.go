@@ -129,7 +129,7 @@ func (app *application) loginUser(c echo.Context) error {
 
         errMsg := fmt.Sprintf("Too many login attempts. Try again in %v", duration.Round(time.Minute))
         if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-            return views.LoginPage(views.LoginData{ErrorMessage: errMsg}).Render(c.Request().Context(), c.Response().Writer)
+            return views.LoginForm(views.LoginData{ErrorMessage: errMsg}).Render(c.Request().Context(), c.Response().Writer)
         }
         return api.NewTooManyRequestsError(errMsg)
     }
@@ -137,14 +137,14 @@ func (app *application) loginUser(c echo.Context) error {
     var req loginRequest
     if err := c.Bind(&req); err != nil {
         if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-            return views.LoginPage(views.LoginData{ErrorMessage: "Invalid request"}).Render(c.Request().Context(), c.Response().Writer)
+            return views.LoginForm(views.LoginData{ErrorMessage: "Invalid request"}).Render(c.Request().Context(), c.Response().Writer)
         }
         return api.NewBadRequestError("invalid request body")
     }
 
     if err := c.Validate(&req); err != nil {
         if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-            return views.LoginPage(views.LoginData{ErrorMessage: "Invalid input"}).Render(c.Request().Context(), c.Response().Writer)
+            return views.LoginForm(views.LoginData{ErrorMessage: "Invalid input"}).Render(c.Request().Context(), c.Response().Writer)
         }
         return err
     }
@@ -158,7 +158,7 @@ func (app *application) loginUser(c echo.Context) error {
                 Msg("Failed login attempt - user not found")
             
             if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-                return views.LoginPage(views.LoginData{ErrorMessage: "Invalid credentials"}).Render(c.Request().Context(), c.Response().Writer)
+                return views.LoginForm(views.LoginData{ErrorMessage: "Invalid credentials"}).Render(c.Request().Context(), c.Response().Writer)
             }
             return api.NewUnauthorizedError("invalid credentials")
         }
@@ -173,7 +173,7 @@ func (app *application) loginUser(c echo.Context) error {
             Msg("Failed login attempt - invalid password")
         
         if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-            return views.LoginPage(views.LoginData{ErrorMessage: "Invalid credentials"}).Render(c.Request().Context(), c.Response().Writer)
+            return views.LoginForm(views.LoginData{ErrorMessage: "Invalid credentials"}).Render(c.Request().Context(), c.Response().Writer)
         }
         return api.NewUnauthorizedError("invalid credentials")
     }
