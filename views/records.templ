@@ -1,140 +1,294 @@
 package views
 
 import (
-    "fmt"
-    "strconv"
-    "github.com/dukerupert/dd/internal/types"
+	"fmt"
+	"github.com/dukerupert/dd/internal/types"
+	"strconv"
 )
 
+templ RecordsPage(p types.RecordsPage) {
+	@base(p.Page) {
+		<div class="bg-white rounded-lg shadow p-6">
+			<div class="flex justify-between items-center mb-6">
+				<h1 class="text-2xl font-bold">My Record Collection</h1>
+				<button
+					hx-get="/records/new"
+					hx-target="body"
+					class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+				>
+					Add Record
+				</button>
+			</div>
+			<div class="flex gap-4 mb-6">
+				<div class="flex-1">
+					<input
+						type="text"
+						name="search"
+						value={ p.Search }
+						placeholder="Search records..."
+						class="w-full px-4 py-2 border rounded"
+						hx-get="/records"
+						hx-trigger="keyup changed delay:500ms"
+						hx-target="#records-container"
+						hx-include="[name='sort'], [name='genre']"
+					/>
+				</div>
+				<select
+					name="sort"
+					class="px-4 py-2 border rounded"
+					hx-get="/records"
+					hx-trigger="change"
+					hx-target="#records-container"
+					hx-include="[name='search'], [name='genre']"
+				>
+					<option value="created_desc" selected?={ p.SortOrder == "desc" }>Date Added (Newest)</option>
+					<option value="created_asc" selected?={ p.SortOrder == "asc" }>Date Added (Oldest)</option>
+				</select>
+				<select
+					name="genre"
+					class="px-4 py-2 border rounded"
+					hx-get="/records"
+					hx-trigger="change"
+					hx-target="#records-container"
+					hx-include="[name='search'], [name='sort']"
+				>
+					<option value="">All Genres</option>
+					<option value="rock" selected?={ p.Genre == "rock" }>Rock</option>
+					<option value="jazz" selected?={ p.Genre == "jazz" }>Jazz</option>
+					<option value="classical" selected?={ p.Genre == "classical" }>Classical</option>
+					<option value="electronic" selected?={ p.Genre == "electronic" }>Electronic</option>
+					<option value="hip-hop" selected?={ p.Genre == "hip-hop" }>Hip Hop</option>
+					<option value="other" selected?={ p.Genre == "other" }>Other</option>
+				</select>
+			</div>
+			@Records(p)
+		</div>
+	}
+}
+
 templ Records(p types.RecordsPage) {
-    @base(p.Page) {
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold">My Record Collection</h1>
-                <button 
-                    hx-get="/records/new"
-                    hx-target="body"
-                    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-                >
-                    Add Record
-                </button>
-            </div>
+	<div id="records-container">
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+			for _, record := range p.Records {
+				<div class="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+					<div class="flex justify-between items-start">
+						<div>
+							<h3 class="font-bold">{ record.Album }</h3>
+							<p class="text-gray-600">{ record.Artist }</p>
+							<p class="text-sm text-gray-500">
+								{ strconv.FormatInt(record.Year, 10) } • { record.Genre } • { record.Condition }
+							</p>
+						</div>
+						<div class="flex gap-2">
+							<button
+								hx-get={ fmt.Sprintf("/records/%d/edit", record.ID) }
+								hx-target="body"
+								class="text-indigo-600 hover:text-indigo-800"
+							>
+								Edit
+							</button>
+							<button
+								hx-delete={ fmt.Sprintf("/records/%d", record.ID) }
+								hx-confirm="Are you sure you want to delete this record?"
+								hx-target="#records-container"
+								class="text-red-600 hover:text-red-800"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+		if len(p.Records) == 0 {
+			<div class="text-center py-12 text-gray-500">
+				No records found. Try adjusting your search or filters.
+			</div>
+		}
+		<div class="mt-6 flex justify-between items-center">
+			<div class="text-gray-600">
+				Showing page { strconv.Itoa(p.CurrentPage) } of { strconv.Itoa(p.TotalPages) }
+			</div>
+			<div class="flex gap-2">
+				if p.CurrentPage > 1 {
+					<button
+						hx-get={ fmt.Sprintf("/records?page=%d", p.CurrentPage-1) }
+						hx-target="#records-container"
+						hx-include="[name='search'], [name='sort'], [name='genre']"
+						class="px-4 py-2 border rounded hover:bg-gray-50"
+					>
+						Previous
+					</button>
+				}
+				if p.CurrentPage < p.TotalPages {
+					<button
+						hx-get={ fmt.Sprintf("/records?page=%d", p.CurrentPage+1) }
+						hx-target="#records-container"
+						hx-include="[name='search'], [name='sort'], [name='genre']"
+						class="px-4 py-2 border rounded hover:bg-gray-50"
+					>
+						Next
+					</button>
+				}
+			</div>
+		</div>
+	</div>
+}
 
-            <div class="flex gap-4 mb-6">
-                <div class="flex-1">
-                    <input
-                        type="text"
-                        name="search"
-                        value={p.Search}
-                        placeholder="Search records..."
-                        class="w-full px-4 py-2 border rounded"
-                        hx-get="/records"
-                        hx-trigger="keyup changed delay:500ms"
-                        hx-target="#records-container"
-                        hx-include="[name='sort'], [name='genre']"
-                    />
-                </div>
-                <select
-                    name="sort"
-                    class="px-4 py-2 border rounded"
-                    hx-get="/records"
-                    hx-trigger="change"
-                    hx-target="#records-container"
-                    hx-include="[name='search'], [name='genre']"
-                >
-                    <option value="album_asc" selected?={p.SortBy == "album" && p.SortOrder == "asc"}>Album (A-Z)</option>
-                    <option value="album_desc" selected?={p.SortBy == "album" && p.SortOrder == "desc"}>Album (Z-A)</option>
-                    <option value="artist_asc" selected?={p.SortBy == "artist" && p.SortOrder == "asc"}>Artist (A-Z)</option>
-                    <option value="artist_desc" selected?={p.SortBy == "artist" && p.SortOrder == "desc"}>Artist (Z-A)</option>
-                    <option value="year_desc" selected?={p.SortBy == "year" && p.SortOrder == "desc"}>Year (Newest)</option>
-                    <option value="year_asc" selected?={p.SortBy == "year" && p.SortOrder == "asc"}>Year (Oldest)</option>
-                </select>
-                <select
-                    name="genre"
-                    class="px-4 py-2 border rounded"
-                    hx-get="/records"
-                    hx-trigger="change"
-                    hx-target="#records-container"
-                    hx-include="[name='search'], [name='sort']"
-                >
-                    <option value="">All Genres</option>
-                    <option value="rock" selected?={p.Genre == "rock"}>Rock</option>
-                    <option value="jazz" selected?={p.Genre == "jazz"}>Jazz</option>
-                    <option value="classical" selected?={p.Genre == "classical"}>Classical</option>
-                    <option value="electronic" selected?={p.Genre == "electronic"}>Electronic</option>
-                    <option value="hip-hop" selected?={p.Genre == "hip-hop"}>Hip Hop</option>
-                    <option value="other" selected?={p.Genre == "other"}>Other</option>
-                </select>
-            </div>
-
-            <div id="records-container">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    for _, record := range p.Records {
-                        <div class="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h3 class="font-bold">{record.Album}</h3>
-                                    <p class="text-gray-600">{record.Artist}</p>
-                                    <p class="text-sm text-gray-500">
-                                        {strconv.FormatInt(record.Year, 10)} • {record.Genre} • {record.Condition}
-                                    </p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button
-                                        hx-get={fmt.Sprintf("/records/%d/edit", record.ID)}
-                                        hx-target="body"
-                                        class="text-indigo-600 hover:text-indigo-800"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        hx-delete={fmt.Sprintf("/records/%d", record.ID)}
-                                        hx-confirm="Are you sure you want to delete this record?"
-                                        hx-target="#records-container"
-                                        class="text-red-600 hover:text-red-800"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-
-                if len(p.Records) == 0 {
-                    <div class="text-center py-12 text-gray-500">
-                        No records found. Try adjusting your search or filters.
-                    </div>
-                }
-
-                <div class="mt-6 flex justify-between items-center">
-                    <div class="text-gray-600">
-                        Showing page {strconv.Itoa(p.CurrentPage)} of {strconv.Itoa(p.TotalPages)}
-                    </div>
-                    <div class="flex gap-2">
-                        if p.CurrentPage > 1 {
-                            <button
-                                hx-get={fmt.Sprintf("/records?page=%d", p.CurrentPage-1)}
-                                hx-target="#records-container"
-                                hx-include="[name='search'], [name='sort'], [name='genre']"
-                                class="px-4 py-2 border rounded hover:bg-gray-50"
-                            >
-                                Previous
-                            </button>
-                        }
-                        if p.CurrentPage < p.TotalPages {
-                            <button
-                                hx-get={fmt.Sprintf("/records?page=%d", p.CurrentPage+1)}
-                                hx-target="#records-container"
-                                hx-include="[name='search'], [name='sort'], [name='genre']"
-                                class="px-4 py-2 border rounded hover:bg-gray-50"
-                            >
-                                Next
-                            </button>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
+templ RecordForm(p types.RecordFormPage) {
+	@base(p.Page) {
+		<div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+			<h1 class="text-2xl font-bold mb-6">
+				if p.Record == nil {
+					Add New Record
+				} else {
+					Edit Record
+				}
+			</h1>
+			<form
+				if p.Record == nil {
+					hx-post="/records"
+				} else {
+					hx-put={ fmt.Sprintf("/records/%d", p.Record.ID) }
+				}
+				hx-target="body"
+				class="space-y-6"
+			>
+				<div>
+					<label for="artist" class="block text-sm font-medium text-gray-700">Artist</label>
+					<input
+						type="text"
+						id="artist"
+						name="artist"
+						required
+						minlength="1"
+						maxlength="100"
+						if p.Record != nil {
+							value={ p.Record.Artist }
+						}
+						class={
+							"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+							templ.KV("border-red-300", p.FormError["artist"] != ""),
+						}
+						placeholder="Enter artist name"
+					/>
+					if p.FormError["artist"] != "" {
+						<p class="mt-1 text-sm text-red-600">{ p.FormError["artist"] }</p>
+					}
+				</div>
+				<div>
+					<label for="album" class="block text-sm font-medium text-gray-700">Album</label>
+					<input
+						type="text"
+						id="album"
+						name="album"
+						required
+						minlength="1"
+						maxlength="100"
+						if p.Record != nil {
+							value={ p.Record.Album }
+						}
+						class={
+							"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+							templ.KV("border-red-300", p.FormError["album"] != ""),
+						}
+						placeholder="Enter album name"
+					/>
+					if p.FormError["album"] != "" {
+						<p class="mt-1 text-sm text-red-600">{ p.FormError["album"] }</p>
+					}
+				</div>
+				<div>
+					<label for="year" class="block text-sm font-medium text-gray-700">Year</label>
+					<input
+						type="number"
+						id="year"
+						name="year"
+						required
+						min="1900"
+						max="2024"
+						if p.Record != nil {
+							value={ strconv.FormatInt(p.Record.Year, 10) }
+						}
+						class={
+							"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+							templ.KV("border-red-300", p.FormError["year"] != ""),
+						}
+						placeholder="Enter release year"
+					/>
+					if p.FormError["year"] != "" {
+						<p class="mt-1 text-sm text-red-600">{ p.FormError["year"] }</p>
+					}
+				</div>
+				<div>
+					<label for="genre" class="block text-sm font-medium text-gray-700">Genre</label>
+					<select
+						id="genre"
+						name="genre"
+						required
+						class={
+							"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+							templ.KV("border-red-300", p.FormError["genre"] != ""),
+						}
+					>
+						<option value="">Select a genre</option>
+						for _, genre := range []string{"Rock", "Progressive Rock", "Jazz", "Classical", "Electronic", "Hip Hop", "Pop", "Folk", "Blues", "Other"} {
+							if p.Record != nil && p.Record.Genre == genre {
+								<option value={ genre } selected>{ genre }</option>
+							} else {
+								<option value={ genre }>{ genre }</option>
+							}
+						}
+					</select>
+					if p.FormError["genre"] != "" {
+						<p class="mt-1 text-sm text-red-600">{ p.FormError["genre"] }</p>
+					}
+				</div>
+				<div>
+					<label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
+					<select
+						id="condition"
+						name="condition"
+						required
+						class={
+							"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+							templ.KV("border-red-300", p.FormError["condition"] != ""),
+						}
+					>
+						<option value="">Select condition</option>
+						for _, condition := range []string{"Mint", "Near Mint", "Very Good Plus", "Very Good", "Good", "Fair", "Poor"} {
+							if p.Record != nil && p.Record.Condition == condition {
+								<option value={ condition } selected>{ condition }</option>
+							} else {
+								<option value={ condition }>{ condition }</option>
+							}
+						}
+					</select>
+					if p.FormError["condition"] != "" {
+						<p class="mt-1 text-sm text-red-600">{ p.FormError["condition"] }</p>
+					}
+				</div>
+				<div class="flex justify-end gap-4">
+					<button
+						type="button"
+						hx-get="/records"
+						hx-target="body"
+						class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+					>
+						if p.Record == nil {
+							Add Record
+						} else {
+							Save Changes
+						}
+					</button>
+				</div>
+			</form>
+		</div>
+	}
 }

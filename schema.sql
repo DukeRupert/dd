@@ -54,26 +54,27 @@ WHERE user_id = ?
 ORDER BY artist;
 
 -- name: GetUserRecords :many
-SELECT * FROM records
-WHERE user_id = ? 
-    AND (artist LIKE ? OR album LIKE ?)
-    AND (? OR genre = ?)
-ORDER BY 
-    CASE WHEN ? IN ('artist_asc', 'album_asc', 'year_asc') THEN
-        CASE ?
-            WHEN 'artist_asc' THEN artist
-            WHEN 'album_asc' THEN album
-            WHEN 'year_asc' THEN year
-        END
-    END ASC,
-    created_at DESC
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
+FROM records
+WHERE user_id = ?
+    AND (artist LIKE ? OR album LIKE ?) 
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?;
+
+-- Alternative version for ascending order
+-- name: GetUserRecordsAsc :many
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
+FROM records
+WHERE user_id = ?
+    AND (artist LIKE ? OR album LIKE ?) 
+ORDER BY created_at ASC
 LIMIT ? OFFSET ?;
 
 -- name: GetUserRecordsCount :one
-SELECT COUNT(*) FROM records
-WHERE user_id = ? 
-    AND (artist LIKE ? OR album LIKE ?)
-    AND (? OR genre = ?);
+SELECT COUNT(*) 
+FROM records
+WHERE user_id = ?
+    AND (artist LIKE ? OR album LIKE ?);
 
 -- name: CreateRecord :one
 INSERT INTO records (

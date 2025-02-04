@@ -25,3 +25,9 @@ type RecordsPage struct {
     Genre       string
     Search      string
 }
+
+type RecordFormPage struct {
+    Page
+    Record    *db.Record // nil for new record, populated for edit
+    FormError map[string]string
+}

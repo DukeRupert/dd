@@ -16,7 +16,7 @@ import (
 )
 
 type Config struct {
-	Config		config.Config
+	Config      config.Config
 	Queries     *db.Queries
 	Logger      zerolog.Logger
 	RateLimiter *ratelimit.RateLimiter
@@ -24,7 +24,7 @@ type Config struct {
 }
 
 type application struct {
-	config		config.Config
+	config      config.Config
 	queries     *db.Queries
 	logger      zerolog.Logger
 	rateLimiter *ratelimit.RateLimiter
@@ -33,7 +33,7 @@ type application struct {
 
 func NewHandler(cfg Config) *application {
 	return &application{
-		config:		 cfg.Config,
+		config:      cfg.Config,
 		queries:     cfg.Queries,
 		logger:      cfg.Logger,
 		rateLimiter: cfg.RateLimiter,
@@ -54,6 +54,7 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to Vinyl Collection API")
 	})
+	e.GET("/register", app.showRegister)
 	e.POST("/register", app.registerUser)
 	e.GET("/login", app.showLogin)
 	e.POST("/login", app.loginUser)
@@ -71,7 +72,9 @@ func (app *application) CreateRoutes(e *echo.Echo) {
 	protected.GET("/records/:id", app.getRecord)
 	protected.POST("/records", app.createRecord)
 	protected.PUT("/records/:id", app.updateRecord)
-	protected.DELETE("/records/:id", app.deleteRecord) // Middleware - order is important
+	protected.DELETE("/records/:id", app.deleteRecord)
+	protected.GET("/records/new", app.showRecordForm)
+	protected.GET("/records/:id/edit", app.showRecordForm)
 
 	// Development routes
 	if app.config.AppEnv == "development" {

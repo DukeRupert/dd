@@ -319,30 +319,20 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 }
 
 const getUserRecords = `-- name: GetUserRecords :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records
-WHERE user_id = ? 
-    AND (artist LIKE ? OR album LIKE ?)
-    AND (? OR genre = ?)
-ORDER BY 
-    CASE WHEN ? IN ('artist_asc', 'album_asc', 'year_asc') THEN
-        CASE ?
-            WHEN 'artist_asc' THEN artist
-            WHEN 'album_asc' THEN album
-            WHEN 'year_asc' THEN year
-        END
-    END ASC,
-    created_at DESC
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
+FROM records
+WHERE user_id = ?
+    AND (artist LIKE ? OR album LIKE ?) 
+ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type GetUserRecordsParams struct {
-	UserID  int64       `json:"user_id"`
-	Artist  string      `json:"artist"`
-	Album   string      `json:"album"`
-	Column4 interface{} `json:"column_4"`
-	Genre   string      `json:"genre"`
-	Limit   int64       `json:"limit"`
-	Offset  int64       `json:"offset"`
+	UserID int64  `json:"user_id"`
+	Artist string `json:"artist"`
+	Album  string `json:"album"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
 }
 
 func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) ([]Record, error) {
@@ -350,8 +340,63 @@ func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) 
 		arg.UserID,
 		arg.Artist,
 		arg.Album,
-		arg.Column4,
-		arg.Genre,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Record
+	for rows.Next() {
+		var i Record
+		if err := rows.Scan(
+			&i.ID,
+			&i.Artist,
+			&i.Album,
+			&i.Year,
+			&i.Genre,
+			&i.Condition,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserRecordsAsc = `-- name: GetUserRecordsAsc :many
+SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
+FROM records
+WHERE user_id = ?
+    AND (artist LIKE ? OR album LIKE ?) 
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?
+`
+
+type GetUserRecordsAscParams struct {
+	UserID int64  `json:"user_id"`
+	Artist string `json:"artist"`
+	Album  string `json:"album"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
+}
+
+// Alternative version for ascending order
+func (q *Queries) GetUserRecordsAsc(ctx context.Context, arg GetUserRecordsAscParams) ([]Record, error) {
+	rows, err := q.db.QueryContext(ctx, getUserRecordsAsc,
+		arg.UserID,
+		arg.Artist,
+		arg.Album,
 		arg.Limit,
 		arg.Offset,
 	)
@@ -387,28 +432,20 @@ func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) 
 }
 
 const getUserRecordsCount = `-- name: GetUserRecordsCount :one
-SELECT COUNT(*) FROM records
-WHERE user_id = ? 
+SELECT COUNT(*) 
+FROM records
+WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?)
-    AND (? OR genre = ?)
 `
 
 type GetUserRecordsCountParams struct {
-	UserID  int64       `json:"user_id"`
-	Artist  string      `json:"artist"`
-	Album   string      `json:"album"`
-	Column4 interface{} `json:"column_4"`
-	Genre   string      `json:"genre"`
+	UserID int64  `json:"user_id"`
+	Artist string `json:"artist"`
+	Album  string `json:"album"`
 }
 
 func (q *Queries) GetUserRecordsCount(ctx context.Context, arg GetUserRecordsCountParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getUserRecordsCount,
-		arg.UserID,
-		arg.Artist,
-		arg.Album,
-		arg.Column4,
-		arg.Genre,
-	)
+	row := q.db.QueryRowContext(ctx, getUserRecordsCount, arg.UserID, arg.Artist, arg.Album)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
