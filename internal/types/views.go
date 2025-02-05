@@ -29,6 +29,5 @@ type RecordsPage struct {
 type RecordFormPage struct {
     Page
     Record    *db.Record // nil for new record, populated for edit
-    Images    []db.RecordImage
     FormError map[string]string
 }

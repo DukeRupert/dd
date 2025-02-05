@@ -28,22 +28,16 @@ type PasswordReset struct {
 }
 
 type Record struct {
-	ID        int64     `json:"id"`
-	Artist    string    `json:"artist"`
-	Album     string    `json:"album"`
-	Year      int64     `json:"year"`
-	Genre     string    `json:"genre"`
-	Condition string    `json:"condition"`
-	UserID    int64     `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type RecordImage struct {
-	ID        int64     `json:"id"`
-	RecordID  int64     `json:"record_id"`
-	Filename  string    `json:"filename"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            int64          `json:"id"`
+	Artist        string         `json:"artist"`
+	Album         string         `json:"album"`
+	Year          int64          `json:"year"`
+	Genre         string         `json:"genre"`
+	Condition     string         `json:"condition"`
+	ImageFilename sql.NullString `json:"image_filename"`
+	UserID        int64          `json:"user_id"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type User struct {

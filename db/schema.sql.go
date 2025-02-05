@@ -71,20 +71,21 @@ func (q *Queries) CreatePasswordReset(ctx context.Context, arg CreatePasswordRes
 
 const createRecord = `-- name: CreateRecord :one
 INSERT INTO records (
-    artist, album, year, genre, condition, user_id
+    artist, album, year, genre, condition, user_id, image_filename
 ) VALUES (
-    ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, artist, album, year, genre, condition, user_id, created_at, updated_at
+RETURNING id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at
 `
 
 type CreateRecordParams struct {
-	Artist    string `json:"artist"`
-	Album     string `json:"album"`
-	Year      int64  `json:"year"`
-	Genre     string `json:"genre"`
-	Condition string `json:"condition"`
-	UserID    int64  `json:"user_id"`
+	Artist        string         `json:"artist"`
+	Album         string         `json:"album"`
+	Year          int64          `json:"year"`
+	Genre         string         `json:"genre"`
+	Condition     string         `json:"condition"`
+	UserID        int64          `json:"user_id"`
+	ImageFilename sql.NullString `json:"image_filename"`
 }
 
 func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Record, error) {
@@ -95,6 +96,7 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 		arg.Genre,
 		arg.Condition,
 		arg.UserID,
+		arg.ImageFilename,
 	)
 	var i Record
 	err := row.Scan(
@@ -104,36 +106,10 @@ func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) (Rec
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.ImageFilename,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createRecordImage = `-- name: CreateRecordImage :one
-INSERT INTO record_images (
-    record_id,
-    filename
-) VALUES (
-    ?,
-    ?
-) RETURNING id, record_id, filename, created_at
-`
-
-type CreateRecordImageParams struct {
-	RecordID int64  `json:"record_id"`
-	Filename string `json:"filename"`
-}
-
-func (q *Queries) CreateRecordImage(ctx context.Context, arg CreateRecordImageParams) (RecordImage, error) {
-	row := q.db.QueryRowContext(ctx, createRecordImage, arg.RecordID, arg.Filename)
-	var i RecordImage
-	err := row.Scan(
-		&i.ID,
-		&i.RecordID,
-		&i.Filename,
-		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -187,26 +163,6 @@ type DeleteRecordParams struct {
 
 func (q *Queries) DeleteRecord(ctx context.Context, arg DeleteRecordParams) error {
 	_, err := q.db.ExecContext(ctx, deleteRecord, arg.ID, arg.UserID)
-	return err
-}
-
-const deleteRecordImage = `-- name: DeleteRecordImage :exec
-DELETE FROM record_images AS ri
-WHERE ri.id = ? 
-AND ri.record_id IN (
-    SELECT id 
-    FROM records AS r
-    WHERE r.user_id = ?
-)
-`
-
-type DeleteRecordImageParams struct {
-	ID     int64 `json:"id"`
-	UserID int64 `json:"user_id"`
-}
-
-func (q *Queries) DeleteRecordImage(ctx context.Context, arg DeleteRecordImageParams) error {
-	_, err := q.db.ExecContext(ctx, deleteRecordImage, arg.ID, arg.UserID)
 	return err
 }
 
@@ -299,7 +255,7 @@ func (q *Queries) GetPasswordResetByToken(ctx context.Context, token string) (Ge
 }
 
 const getRecord = `-- name: GetRecord :one
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records 
+SELECT id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at FROM records 
 WHERE id = ? AND user_id = ? 
 LIMIT 1
 `
@@ -320,45 +276,12 @@ func (q *Queries) GetRecord(ctx context.Context, arg GetRecordParams) (Record, e
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.ImageFilename,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const getRecordImages = `-- name: GetRecordImages :many
-SELECT id, record_id, filename, created_at FROM record_images
-WHERE record_id = ?
-ORDER BY created_at DESC
-`
-
-func (q *Queries) GetRecordImages(ctx context.Context, recordID int64) ([]RecordImage, error) {
-	rows, err := q.db.QueryContext(ctx, getRecordImages, recordID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RecordImage
-	for rows.Next() {
-		var i RecordImage
-		if err := rows.Scan(
-			&i.ID,
-			&i.RecordID,
-			&i.Filename,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -400,11 +323,10 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 }
 
 const getUserRecords = `-- name: GetUserRecords :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
-FROM records
+SELECT id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at FROM records
 WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?) 
-ORDER BY created_at ASC
+ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
@@ -438,6 +360,7 @@ func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) 
 			&i.Year,
 			&i.Genre,
 			&i.Condition,
+			&i.ImageFilename,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -456,8 +379,7 @@ func (q *Queries) GetUserRecords(ctx context.Context, arg GetUserRecordsParams) 
 }
 
 const getUserRecordsAsc = `-- name: GetUserRecordsAsc :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
-FROM records
+SELECT id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at FROM records
 WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?) 
 ORDER BY created_at ASC
@@ -472,7 +394,6 @@ type GetUserRecordsAscParams struct {
 	Offset int64  `json:"offset"`
 }
 
-// Alternative version for ascending order
 func (q *Queries) GetUserRecordsAsc(ctx context.Context, arg GetUserRecordsAscParams) ([]Record, error) {
 	rows, err := q.db.QueryContext(ctx, getUserRecordsAsc,
 		arg.UserID,
@@ -495,6 +416,7 @@ func (q *Queries) GetUserRecordsAsc(ctx context.Context, arg GetUserRecordsAscPa
 			&i.Year,
 			&i.Genre,
 			&i.Condition,
+			&i.ImageFilename,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -546,7 +468,7 @@ func (q *Queries) IsEmailVerified(ctx context.Context, id int64) (bool, error) {
 }
 
 const listRecords = `-- name: ListRecords :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at FROM records 
+SELECT id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at FROM records 
 WHERE user_id = ? 
 ORDER BY artist
 `
@@ -567,6 +489,7 @@ func (q *Queries) ListRecords(ctx context.Context, userID int64) ([]Record, erro
 			&i.Year,
 			&i.Genre,
 			&i.Condition,
+			&i.ImageFilename,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -624,19 +547,21 @@ SET artist = ?,
     year = ?,
     genre = ?,
     condition = ?,
+    image_filename = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ? AND user_id = ?
-RETURNING id, artist, album, year, genre, condition, user_id, created_at, updated_at
+RETURNING id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at
 `
 
 type UpdateRecordParams struct {
-	Artist    string `json:"artist"`
-	Album     string `json:"album"`
-	Year      int64  `json:"year"`
-	Genre     string `json:"genre"`
-	Condition string `json:"condition"`
-	ID        int64  `json:"id"`
-	UserID    int64  `json:"user_id"`
+	Artist        string         `json:"artist"`
+	Album         string         `json:"album"`
+	Year          int64          `json:"year"`
+	Genre         string         `json:"genre"`
+	Condition     string         `json:"condition"`
+	ImageFilename sql.NullString `json:"image_filename"`
+	ID            int64          `json:"id"`
+	UserID        int64          `json:"user_id"`
 }
 
 func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Record, error) {
@@ -646,6 +571,7 @@ func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Rec
 		arg.Year,
 		arg.Genre,
 		arg.Condition,
+		arg.ImageFilename,
 		arg.ID,
 		arg.UserID,
 	)
@@ -657,6 +583,39 @@ func (q *Queries) UpdateRecord(ctx context.Context, arg UpdateRecordParams) (Rec
 		&i.Year,
 		&i.Genre,
 		&i.Condition,
+		&i.ImageFilename,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateRecordImage = `-- name: UpdateRecordImage :one
+UPDATE records
+SET image_filename = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND user_id = ?
+RETURNING id, artist, album, year, genre, condition, image_filename, user_id, created_at, updated_at
+`
+
+type UpdateRecordImageParams struct {
+	ImageFilename sql.NullString `json:"image_filename"`
+	ID            int64          `json:"id"`
+	UserID        int64          `json:"user_id"`
+}
+
+func (q *Queries) UpdateRecordImage(ctx context.Context, arg UpdateRecordImageParams) (Record, error) {
+	row := q.db.QueryRowContext(ctx, updateRecordImage, arg.ImageFilename, arg.ID, arg.UserID)
+	var i Record
+	err := row.Scan(
+		&i.ID,
+		&i.Artist,
+		&i.Album,
+		&i.Year,
+		&i.Genre,
+		&i.Condition,
+		&i.ImageFilename,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

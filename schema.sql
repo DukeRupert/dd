@@ -6,17 +6,10 @@ CREATE TABLE IF NOT EXISTS records (
     year INTEGER NOT NULL,
     genre TEXT NOT NULL,
     condition TEXT NOT NULL,
+    image_filename TEXT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS record_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    record_id INTEGER NOT NULL,
-    filename TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -62,17 +55,14 @@ WHERE user_id = ?
 ORDER BY artist;
 
 -- name: GetUserRecords :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
-FROM records
+SELECT * FROM records
 WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?) 
-ORDER BY created_at ASC
+ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
--- Alternative version for ascending order
 -- name: GetUserRecordsAsc :many
-SELECT id, artist, album, year, genre, condition, user_id, created_at, updated_at 
-FROM records
+SELECT * FROM records
 WHERE user_id = ?
     AND (artist LIKE ? OR album LIKE ?) 
 ORDER BY created_at ASC
@@ -86,9 +76,9 @@ WHERE user_id = ?
 
 -- name: CreateRecord :one
 INSERT INTO records (
-    artist, album, year, genre, condition, user_id
+    artist, album, year, genre, condition, user_id, image_filename
 ) VALUES (
-    ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING *;
 
@@ -99,6 +89,14 @@ SET artist = ?,
     year = ?,
     genre = ?,
     condition = ?,
+    image_filename = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND user_id = ?
+RETURNING *;
+
+-- name: UpdateRecordImage :one
+UPDATE records
+SET image_filename = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ? AND user_id = ?
 RETURNING *;
@@ -196,26 +194,3 @@ WHERE id = ?;
 SELECT verified_at IS NOT NULL as is_verified
 FROM users
 WHERE id = ?;
-
--- name: CreateRecordImage :one
-INSERT INTO record_images (
-    record_id,
-    filename
-) VALUES (
-    ?,
-    ?
-) RETURNING *;
-
--- name: GetRecordImages :many
-SELECT * FROM record_images
-WHERE record_id = ?
-ORDER BY created_at DESC;
-
--- name: DeleteRecordImage :exec
-DELETE FROM record_images AS ri
-WHERE ri.id = ? 
-AND ri.record_id IN (
-    SELECT id 
-    FROM records AS r
-    WHERE r.user_id = ?
-);

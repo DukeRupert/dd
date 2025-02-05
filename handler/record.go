@@ -309,98 +309,89 @@ func (app *application) updateRecord(c echo.Context) error {
 }
 
 func (app *application) getAllRecords(c echo.Context) error {
-	// Get user ID from context
-	userID, err := auth.GetUserID(c)
-	if err != nil {
-		return err
-	}
+    userID, err := auth.GetUserID(c)
+    if err != nil {
+        return err
+    }
 
-	// Get query parameters
-	page, _ := strconv.Atoi(c.QueryParam("page"))
-	if page < 1 {
-		page = 1
-	}
+    page, _ := strconv.Atoi(c.QueryParam("page"))
+    if page < 1 {
+        page = 1
+    }
 
-	search := c.QueryParam("search")
-	sort := c.QueryParam("sort")
-	genre := c.QueryParam("genre")
+    search := c.QueryParam("search")
+    sort := c.QueryParam("sort")
+    genre := c.QueryParam("genre")
 
-	// Calculate offset
-	offset := int64((page - 1) * recordsPerPage)
+    offset := int64((page - 1) * recordsPerPage)
 
-	var records []db.Record
-	if sort == "created_asc" {
-		records, err = app.queries.GetUserRecordsAsc(c.Request().Context(), db.GetUserRecordsAscParams{
-			UserID: userID,
-			Artist: "%" + search + "%",
-			Album:  "%" + search + "%",
-			Limit:  recordsPerPage,
-			Offset: offset,
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		records, err = app.queries.GetUserRecords(c.Request().Context(), db.GetUserRecordsParams{
-			UserID: userID,
-			Artist: "%" + search + "%",
-			Album:  "%" + search + "%",
-			Limit:  recordsPerPage,
-			Offset: offset,
-		})
-		if err != nil {
-			return err
-		}
-	}
+    var records []db.Record
+    if sort == "created_asc" {
+        records, err = app.queries.GetUserRecordsAsc(c.Request().Context(), db.GetUserRecordsAscParams{
+            UserID: userID,
+            Artist: "%" + search + "%",
+            Album:  "%" + search + "%",
+            Limit:  recordsPerPage,
+            Offset: offset,
+        })
+    } else {
+        records, err = app.queries.GetUserRecords(c.Request().Context(), db.GetUserRecordsParams{
+            UserID: userID,
+            Artist: "%" + search + "%",
+            Album:  "%" + search + "%",
+            Limit:  recordsPerPage,
+            Offset: offset,
+        })
+    }
+    if err != nil {
+        return err
+    }
 
-	// Get total count for pagination
-	total, err := app.queries.GetUserRecordsCount(c.Request().Context(), db.GetUserRecordsCountParams{
-		UserID: userID,
-		Artist: "%" + search + "%",
-		Album:  "%" + search + "%",
-	})
-	if err != nil {
-		return err
-	}
+    // Rest of the handler remains the same...
+    total, err := app.queries.GetUserRecordsCount(c.Request().Context(), db.GetUserRecordsCountParams{
+        UserID: userID,
+        Artist: "%" + search + "%",
+        Album:  "%" + search + "%",
+    })
+    if err != nil {
+        return err
+    }
 
-	totalPages := (int(total) + recordsPerPage - 1) / recordsPerPage
+    totalPages := (int(total) + recordsPerPage - 1) / recordsPerPage
 
-	app.logger.Info().
-		Str("route", "/records").
-		Int64("user_id", userID).
-		Int("records_found", len(records)).
-		Str("search", search).
-		Int("page", page).
-		Msg("Records retrieved")
+    app.logger.Info().
+        Str("route", "/records").
+        Int64("user_id", userID).
+        Int("records_found", len(records)).
+        Str("search", search).
+        Int("page", page).
+        Msg("Records retrieved")
 
-	// If this is a JSON request, retern JSON
-	if c.Request().Header.Get("Content-Type") == "application/json" {
-		return c.JSON(http.StatusOK, records)
-	}
+    if c.Request().Header.Get("Content-Type") == "application/json" {
+        return c.JSON(http.StatusOK, records)
+    }
 
-	// If this is an HTMX request just return the records
-	if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
-		return views.RecordContainer(types.RecordsPage{
-			Records:     records,
-			CurrentPage: page,
-			TotalPages:  totalPages,
-			SortBy:      "sortBy",
-			SortOrder:   "sortOrder",
-			Genre:       genre,
-			Search:      search,
-		}).Render(c.Request().Context(), c.Response().Writer)
-	}
+    if isHtmx := c.Request().Header.Get("HX-Request") == "true"; isHtmx {
+        return views.RecordContainer(types.RecordsPage{
+            Records:     records,
+            CurrentPage: page,
+            TotalPages:  totalPages,
+            SortBy:      "sortBy",
+            SortOrder:   "sortOrder",
+            Genre:       genre,
+            Search:      search,
+        }).Render(c.Request().Context(), c.Response().Writer)
+    }
 
-	// Otherwise render the full page
-	return views.RecordsPage(types.RecordsPage{
-		Records:     records,
-		CurrentPage: page,
-		TotalPages:  totalPages,
-		SortBy:      "sortBy",
-		SortOrder:   "sortOrder",
-		Genre:       genre,
-		Search:      search,
-	}).Render(c.Request().Context(), c.Response().Writer)
+    return views.RecordsPage(types.RecordsPage{
+        Records:     records,
+        CurrentPage: page,
+        TotalPages:  totalPages,
+        SortBy:      "sortBy",
+        SortOrder:   "sortOrder",
+        Genre:       genre,
+        Search:      search,
+    }).Render(c.Request().Context(), c.Response().Writer)
 }
 
 func (app *application) getRecord(c echo.Context) error {
@@ -578,13 +569,25 @@ func (app *application) uploadRecordImage(c echo.Context) error {
         return err
     }
 
-    // Save to database
-    image, err := app.queries.CreateRecordImage(c.Request().Context(), db.CreateRecordImageParams{
-        RecordID: recordID,
-        Filename: filename,
+    // Remove old image file if it exists
+    if record.ImageFilename.Valid {
+        oldImagePath := filepath.Join(uploadDir, record.ImageFilename.String)
+        if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
+            app.logger.Error().
+                Err(err).
+                Str("path", oldImagePath).
+                Msg("Failed to remove old image file")
+        }
+    }
+
+    // Update record with new image filename
+    updatedRecord, err := app.queries.UpdateRecordImage(c.Request().Context(), db.UpdateRecordImageParams{
+        ID:            recordID,
+        UserID:        userID,
+        ImageFilename: sql.NullString{String: filename, Valid: true},
     })
     if err != nil {
-        // Clean up file if database insert fails
+        // Clean up new file if database update fails
         os.Remove(filepath.Join(uploadDir, filename))
         return err
     }
@@ -595,6 +598,6 @@ func (app *application) uploadRecordImage(c echo.Context) error {
         Str("filename", filename).
         Msg("Record image uploaded")
 
-    // Return partial for HTMX update
-    return views.RecordImages(image).Render(c.Request().Context(), c.Response().Writer)
+    // Return the updated record card
+    return views.Record(updatedRecord).Render(c.Request().Context(), c.Response().Writer)
 }

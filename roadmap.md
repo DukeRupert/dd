@@ -33,7 +33,6 @@
     - [x] Add pagination support
     - [x] Implement sorting functionality
     - [x] Add filtering options
-- [ ] Create record detail view
 - [x] Create record input form
     - [ ] Add client-side validation
     - [x] Implement file upload for album covers
