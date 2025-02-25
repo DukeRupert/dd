@@ -16,6 +16,12 @@ require (
 )
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
+)
+
+require (
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -24,6 +30,7 @@ require (
 	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
