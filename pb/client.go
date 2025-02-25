@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/dukerupert/dd/internal/models"
 )
 
 // Client interface defines methods that a Pocketbase client should implement
 type IClient interface {
-    AuthWithPassword(ctx context.Context, email, password string) (*AuthResponse, error)
+    AuthWithPassword(ctx context.Context, email, password string) (*models.AuthResponse, error)
     SetAuthToken(token string)
     GetAuthToken() string
     ClearAuth()
@@ -27,12 +29,6 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	tokenStore TokenStore
-}
-
-// AuthResponse represents the response from auth-with-password endpoint
-type AuthResponse struct {
-	Token  string       `json:"token"`
-	Record RecordDetail `json:"record"`
 }
 
 // RecordDetail represents user record details
@@ -99,7 +95,7 @@ func (c *Client) Logout() {
 }
 
 // AuthWithPassword authenticates a user with email and password
-func (c *Client) AuthWithPassword(ctx context.Context, email, password string) (*AuthResponse, error) {
+func (c *Client) AuthWithPassword(ctx context.Context, email, password string) (*models.AuthResponse, error) {
 	url := fmt.Sprintf("%s/api/collections/users/auth-with-password", c.baseURL)
 	
 	authReq := AuthRequest{
@@ -133,7 +129,7 @@ func (c *Client) AuthWithPassword(ctx context.Context, email, password string) (
 		return nil, fmt.Errorf("authentication failed: %s", pbError.Message)
 	}
 	
-	var authResp AuthResponse
+	var authResp models.AuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
 		return nil, fmt.Errorf("decoding auth response: %w", err)
 	}

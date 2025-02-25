@@ -50,6 +50,7 @@ func main() {
 	
 	// Public routes
 	e.POST("/auth/login", authHandler.Login)
+	e.GET("/login", handlers.LoginHandler)
 	
 	// Protected routes
 	protected := e.Group("/api")

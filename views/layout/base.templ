@@ -1,0 +1,38 @@
+package layout
+
+templ Base(title string) {
+	<!DOCTYPE html>
+	<html class="h-full bg-gray-50">
+		<head>
+			<meta charset="UTF-8" />
+			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+			<title>{ title }</title>
+			<meta name="htmx-config" content='{
+				"responseHandling":[
+					{"code":"204", "swap": false},
+					{"code":"[23]..", "swap": true},
+					{"code":"401", "swap": true},
+					{"code":"422", "swap": true},
+					{"code":"[45]..", "swap": false, "error":true},
+					{"code":"...", "swap": true}
+				]
+			}'/>
+			<script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+			<style>
+				.htmx-indicator {
+					display: none;
+				}
+				.htmx-request .htmx-indicator {
+					display: inline-block;
+				}
+				.htmx-request.htmx-indicator {
+					display: inline-block;
+				}
+			</style>
+		</head>
+		<body class="h-full">
+			{ children... }
+		</body>
+	</html>
+}

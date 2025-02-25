@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"github.com/dukerupert/dd/internal/handlers"
-	"github.com/dukerupert/dd/pb"
+	"github.com/dukerupert/dd/internal/models"
+	pocketbase "github.com/dukerupert/dd/pb"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -67,7 +68,7 @@ func TestLiveAuthentication(t *testing.T) {
 			}
 
 			// Create request
-			loginRequest := handlers.LoginRequest{
+			loginRequest := models.LoginRequest{
 				Email:    tc.email,
 				Password: tc.password,
 			}
@@ -89,12 +90,12 @@ func TestLiveAuthentication(t *testing.T) {
 			assert.Equal(t, tc.expectedStatus, rec.Code)
 
 			if tc.expectedStatus == http.StatusOK {
-				var response handlers.LoginResponse
+				var response models.LoginResponse
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				assert.NoError(t, err)
 				assert.NotEmpty(t, response.Token)
-				assert.NotEmpty(t, response.User.ID)
-				assert.Equal(t, tc.email, response.User.Email)
+				assert.NotEmpty(t, response.Record.Id)
+				assert.Equal(t, tc.email, response.Record.Email)
 
 				// Store the token for later tests
 				validToken = response.Token
