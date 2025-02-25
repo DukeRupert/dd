@@ -81,3 +81,35 @@ func (h *AuthHandler) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
+
+// Logout handles user logout
+func (h *AuthHandler) Logout(c echo.Context) error {
+	// Clear the token on the server side
+	h.pbClient.ClearAuth()
+	
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Logged out successfully",
+	})
+}
+
+// CheckAuth validates if the user is authenticated
+func (h *AuthHandler) CheckAuth(c echo.Context) error {
+	token := c.Request().Header.Get("Authorization")
+	if token == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Missing authorization token",
+		})
+	}
+	
+	// Set token and check if it's valid
+	h.pbClient.SetAuthToken(token)
+	if !h.pbClient.IsAuthenticated() {
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Invalid or expired token",
+		})
+	}
+	
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Token is valid",
+	})
+}

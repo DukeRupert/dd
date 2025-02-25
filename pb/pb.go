@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -25,7 +26,7 @@ var _ IClient = (*Client)(nil)
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
-	authToken  string
+	tokenStore TokenStore
 }
 
 // AuthResponse represents the response from auth-with-password endpoint
@@ -68,27 +69,33 @@ func NewClient(baseURL string) *Client {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		tokenStore: NewMemoryTokenStore(),
 	}
 }
 
-// SetAuthToken sets the auth token for the client
+// SetAuthToken sets the auth token
 func (c *Client) SetAuthToken(token string) {
-	c.authToken = token
+	c.tokenStore.SetToken(token)
 }
 
 // GetAuthToken returns the current auth token
 func (c *Client) GetAuthToken() string {
-	return c.authToken
+	return c.tokenStore.GetToken()
 }
 
 // ClearAuth clears the authentication token
 func (c *Client) ClearAuth() {
-	c.authToken = ""
+	c.tokenStore.ClearToken()
 }
 
-// IsAuthenticated checks if the client has an auth token
+// IsAuthenticated checks if the client has a valid auth token
 func (c *Client) IsAuthenticated() bool {
-	return c.authToken != ""
+	return c.tokenStore.IsValid()
+}
+
+// Logout "logs out" the user by clearing the token
+func (c *Client) Logout() {
+	c.ClearAuth()
 }
 
 // AuthWithPassword authenticates a user with email and password
@@ -140,7 +147,7 @@ func (c *Client) AuthWithPassword(ctx context.Context, email, password string) (
 // AuthenticatedRequest is a helper method for making authenticated requests
 func (c *Client) AuthenticatedRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	if !c.IsAuthenticated() {
-		return nil, fmt.Errorf("client is not authenticated")
+		return nil, errors.New("not authenticated")
 	}
 	
 	url := fmt.Sprintf("%s%s", c.baseURL, path)
@@ -160,7 +167,7 @@ func (c *Client) AuthenticatedRequest(ctx context.Context, method, path string, 
 	}
 	
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.authToken)
+	req.Header.Set("Authorization", c.GetAuthToken())
 	
 	return c.httpClient.Do(req)
 }
