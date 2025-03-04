@@ -1,15 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/dukerupert/dd/pocketbase"
 	"github.com/rs/zerolog"
@@ -72,15 +69,44 @@ func main() {
 		return
 	}
 
-	// Make a GET request
-	response, err := client.Get("/api/collections/albums/records")
-	if err != nil {
-		logger.Error().Err(err).Msg("GET request failed")
-		return
-	}
-
-	fmt.Println("Response:", string(response))
-
+	// Example: Fetch albums with pagination, sorting, and expansion
+    params := pocketbase.QueryParams{
+        Page:     1,
+        PerPage:  10,
+        Sort:     "-created,title", // Sort by created desc, then title asc
+        Expand:   "artist_id,location_id", // Expand related records
+    }
+    
+    albums, err := client.ListAlbums(params)
+    if err != nil {
+        logger.Error().Err(err).Msg("Failed to fetch albums")
+        return
+    }
+    
+    // Process the results
+    logger.Info().
+        Int("total_albums", albums.TotalItems).
+        Int("current_page", albums.Page).
+        Int("per_page", albums.PerPage).
+        Msg("Fetched albums")
+    
+    // Access the typed results
+    for _, album := range albums.Items {
+        logger.Info().
+            Str("id", album.ID).
+            Str("title", album.Title).
+            Int("year", album.ReleaseYear).
+            Str("genre", album.Genre).
+            Msg("Album details")
+        
+        // Access expanded relations if available
+        if album.Expand.Artist != nil {
+            logger.Info().
+                Str("artist_id", album.ArtistID).
+                Str("artist_name", album.Expand.Artist.Name).
+                Msg("Album artist")
+        }
+    }
 
 	// Routes
 	e.GET("/", func(c echo.Context) error {
@@ -98,10 +124,10 @@ func initLogger() *zerolog.Logger {
 	// Define the log level flag
 	logLevelFlag := flag.String("log-level", "info", "sets log level: panic, fatal, error, warn, info, debug, trace")
 	flag.Parse()
-	
+
 	// UNIX Time is faster and smaller than most timestamps
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	
+
 	// Set log level based on parameter
 	switch strings.ToLower(*logLevelFlag) {
 	case "panic":
@@ -122,10 +148,10 @@ func initLogger() *zerolog.Logger {
 		// Default to info level if invalid level provided
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
-	
+
 	// Create the main logger
 	var logger zerolog.Logger
-	
+
 	// Check if debug level or lower is set for pretty console logging
 	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
 		// Pretty console logging in debug mode
@@ -135,10 +161,9 @@ func initLogger() *zerolog.Logger {
 		// JSON logging for production
 		logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
 	}
-	
+
 	return &logger
 }
-
 
 // Types
 // Create struct to unmarshal the response
@@ -156,81 +181,6 @@ type User struct {
 	UsernamePassword bool          `json:"usernamePassword"`
 	EmailPassword    bool          `json:"emailPassword"`
 	OnlyVerified     bool          `json:"onlyVerified"`
-}
-
-// PocketBaseTime is a custom time type to handle PocketBase's time format
-type PocketBaseTime time.Time
-
-// UnmarshalJSON implements json.Unmarshaler
-func (pbt *PocketBaseTime) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), "\"")
-	if s == "null" || s == "" {
-		*pbt = PocketBaseTime(time.Time{})
-		return nil
-	}
-
-	// PocketBase format: "2025-02-24 03:27:41.065Z"
-	t, err := time.Parse("2006-01-02 15:04:05.999Z", s)
-	if err != nil {
-		// Try alternative formats if the first one fails
-		t, err = time.Parse("2006-01-02 15:04:05.999", s)
-		if err != nil {
-			return err
-		}
-	}
-	
-	*pbt = PocketBaseTime(t)
-	return nil
-}
-
-// MarshalJSON implements json.Marshaler
-func (pbt PocketBaseTime) MarshalJSON() ([]byte, error) {
-	t := time.Time(pbt)
-	if t.IsZero() {
-		return []byte("null"), nil
-	}
-	return json.Marshal(t.Format("2006-01-02 15:04:05.999Z"))
-}
-
-// String returns the time as a formatted string
-func (pbt PocketBaseTime) String() string {
-	t := time.Time(pbt)
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05.999Z")
-}
-
-// Time returns the underlying time.Time
-func (pbt PocketBaseTime) Time() time.Time {
-	return time.Time(pbt)
-}
-
-// Album represents an album record from PocketBase
-type Album struct {
-	CollectionID   string         `json:"collectionId"`
-	CollectionName string         `json:"collectionName"`
-	ID             string         `json:"id"`
-	Title          string         `json:"title"`
-	ArtistID       string         `json:"artist_id"`
-	LocationID     string         `json:"location_id"`
-	ReleaseYear    int            `json:"release_year"`
-	Genre          string         `json:"genre"`
-	Condition      string         `json:"condition"`
-	PurchaseDate   PocketBaseTime `json:"purchase_date"`
-	PurchasePrice  float64        `json:"purchase_price"`
-	Notes          string         `json:"notes"`
-	Created        PocketBaseTime `json:"created"`
-	Updated        PocketBaseTime `json:"updated"`
-}
-
-// AlbumListResponse represents a paginated list of albums
-type AlbumListResponse struct {
-	Page       int     `json:"page"`
-	PerPage    int     `json:"perPage"`
-	TotalPages int     `json:"totalPages"`
-	TotalItems int     `json:"totalItems"`
-	Items      []Album `json:"items"`
 }
 
 // Handlers

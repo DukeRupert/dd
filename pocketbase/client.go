@@ -45,7 +45,7 @@ func NewClient(baseURL string, logger *zerolog.Logger) *Client {
 // Authenticate performs authentication and stores the token
 func (c *Client) Authenticate(identity, password string) error {
 	endpoint := "/api/collections/users/auth-with-password"
-	
+
 	c.Logger.Info().Msg("Authenticating user")
 
 	// Create the JSON payload
