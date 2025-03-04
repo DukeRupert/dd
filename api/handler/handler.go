@@ -9,6 +9,21 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// User represents a user in the system
+type User struct {
+	Name  string
+	Email string
+}
+
+// PageData contains all the data needed for rendering the page
+type PageData struct {
+	Title        string
+	PageTitle    string
+	ContentTitle string
+	Content      interface{}
+	User         User
+}
+
 // Handler contains all HTTP handler for your application
 type Handler struct {
 	Client *pocketbase.Client
@@ -21,6 +36,22 @@ func New(client *pocketbase.Client, logger *zerolog.Logger) *Handler {
 		Client: client,
 		Logger: logger,
 	}
+}
+
+func (h *Handler) Dashboard(c echo.Context) error {
+	h.Logger.Debug().Msg("Handling dashboard request")
+	
+	data := PageData{
+		Title:        "Dashboard | My App",
+		PageTitle:    "Dashboard",
+		ContentTitle: "Welcome to your dashboard",
+		Content:      "This is your dashboard content. You can customize this area.",
+		User: User{
+			Name:  "Tom Cook",
+			Email: "tom@example.com",
+		},
+	}
+	return c.Render(http.StatusOK, "base", data)
 }
 
 // AlbumsHandler returns all albums
@@ -115,6 +146,7 @@ func (h *Handler) ArtistByIDHandler(c echo.Context) error {
 
 // RegisterRoutes registers all routes to the Echo instance
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
+	e.GET("/", h.Dashboard)
 	e.GET("/albums", h.AlbumsHandler)
 	e.GET("/albums/:id", h.AlbumByIDHandler)
 	e.GET("/artists", h.ArtistsHandler)

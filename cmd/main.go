@@ -27,8 +27,16 @@ func main() {
 		return
 	}
 
+	// Parse templates
+	t := &Template{
+		templates: template.Must(template.ParseGlob("web/views/*.html")),
+	}
+	// Also parse the partials
+	template.Must(t.templates.ParseGlob("web/views/partials/*.html"))
+
 	// Create Echo instance
 	e := echo.New()
+	e.Renderer = t
 
 	// Add middleware
 	e.Use(middleware.Logger())
@@ -45,8 +53,6 @@ func main() {
 		log.Error().Err(err).Msg("Server error")
 	}
 }
-
-// Handlers
 
 type Template struct {
 	templates *template.Template
