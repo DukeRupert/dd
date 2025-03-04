@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -29,6 +30,59 @@ func NewClient(baseURL string, logger *zerolog.Logger) *Client {
 		},
 		Logger: logger,
 	}
+}
+
+// sendRequest sends an authenticated request and returns the response body
+func (c *Client) sendRequest(method, collection, endpoint string, params QueryParams) ([]byte, error) {
+    // Build URL with query parameters
+    u, err := url.Parse(c.BaseURL + endpoint)
+    if err != nil {
+        c.Logger.Error().Err(err).Str("collection", collection).Msg("Failed to parse URL")
+        return nil, err
+    }
+    
+    if params != (QueryParams{}) {
+        u.RawQuery = params.ToURLValues().Encode()
+    }
+    
+    // Create request
+    req, err := http.NewRequest(method, u.String(), nil)
+    if err != nil {
+        c.Logger.Error().Err(err).Str("collection", collection).Msg("Failed to create request")
+        return nil, err
+    }
+    
+    // Set authentication header if authenticated
+    if c.IsAuthenticated() {
+        req.Header.Set("Authorization", c.authToken)
+    }
+    
+    // Set content type
+    req.Header.Set("Content-Type", "application/json")
+    
+    // Execute request
+    c.Logger.Debug().Str("collection", collection).Msg("Sending request")
+    resp, err := c.HTTPClient.Do(req)
+    if err != nil {
+        c.Logger.Error().Err(err).Str("collection", collection).Msg("Request failed")
+        return nil, err
+    }
+    defer resp.Body.Close()
+    
+    // Read response body
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        c.Logger.Error().Err(err).Msg("Failed to read response body")
+        return nil, err
+    }
+    
+    // Check for error status codes
+    if resp.StatusCode >= 400 {
+        c.Logger.Error().Int("status_code", resp.StatusCode).Str("response", string(body)).Msg("Request failed")
+        return nil, errors.New("request failed with status " + resp.Status + ": " + string(body))
+    }
+    
+    return body, nil
 }
 
 // Authenticate performs authentication and stores the token

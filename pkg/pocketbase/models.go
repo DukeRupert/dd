@@ -139,34 +139,36 @@ func (pbt PocketBaseTime) Time() time.Time {
 	return time.Time(pbt)
 }
 
+// Album represents an album record
 type Album struct {
-	BaseModel
-	Title         string         `json:"title"`
-	ArtistID      string         `json:"artist_id"`
-	LocationID    string         `json:"location_id"`
-	ReleaseYear   int            `json:"release_year"`
-	Genre         string         `json:"genre"`
-	Condition     string         `json:"condition"`
-	PurchaseDate  PocketBaseTime `json:"purchase_date,omitempty"`
-	PurchasePrice float64        `json:"purchase_price,omitempty"`
-	Notes         string         `json:"notes,omitempty"`
-	// Add expand field for relations if needed
-	Expand struct {
-		Artist   *Artist   `json:"artist_id,omitempty"`
-		Location *Location `json:"location_id,omitempty"`
-	} `json:"expand,omitempty"`
+    BaseModel
+    Title         string         `json:"title"`
+    ArtistID      string         `json:"artist_id"`
+    LocationID    string         `json:"location_id"`
+    ReleaseYear   int            `json:"release_year"`
+    Genre         string         `json:"genre"`
+    Condition     string         `json:"condition"`
+    PurchaseDate  PocketBaseTime `json:"purchase_date,omitempty"`
+    PurchasePrice float64        `json:"purchase_price,omitempty"`
+    Notes         string         `json:"notes,omitempty"`
+    Expand        struct {
+        Artist   *Artist   `json:"artist_id,omitempty"`
+        Location *Location `json:"location_id,omitempty"`
+    } `json:"expand"`
 }
 
-// Artist represents an artist record
+// Artist represents an artist record in PocketBase
 type Artist struct {
-	BaseModel
-	Name string `json:"name"`
-	// Add other fields as needed
+    BaseModel
+    Name    string `json:"name"`
+    Country string `json:"country,omitempty"`
+    Notes   string `json:"notes,omitempty"`
 }
 
-// Location represents a location record
+// Location represents a location record in PocketBase
 type Location struct {
-	BaseModel
-	Name string `json:"name"`
-	// Add other fields as needed
+    BaseModel
+    Name        string `json:"name"`
+    Description string `json:"description,omitempty"`
+    ShelfNumber int    `json:"shelf_number,omitempty"`
 }
