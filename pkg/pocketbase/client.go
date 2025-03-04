@@ -20,17 +20,6 @@ type Client struct {
 	authToken  string
 }
 
-// AuthResponse represents the authentication response structure
-type AuthResponse struct {
-	Record struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Email string `json:"email"`
-		// Add other fields if needed
-	} `json:"record"`
-	Token string `json:"token"`
-}
-
 // NewClient creates a new PocketBase client
 func NewClient(baseURL string, logger *zerolog.Logger) *Client {
 	return &Client{

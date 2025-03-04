@@ -9,6 +9,24 @@ import (
 	"time"
 )
 
+// AuthResponse represents the authentication response structure
+type AuthResponse struct {
+	Record struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+		// Add other fields if needed
+	} `json:"record"`
+	Token string `json:"token"`
+}
+
+type User struct {
+	AuthProviders    []interface{} `json:"authProviders"`
+	UsernamePassword bool          `json:"usernamePassword"`
+	EmailPassword    bool          `json:"emailPassword"`
+	OnlyVerified     bool          `json:"onlyVerified"`
+}
+
 // BaseModel contains fields common to all PocketBase records
 type BaseModel struct {
 	ID             string         `json:"id"`
