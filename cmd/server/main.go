@@ -1,14 +1,13 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 
 	"github.com/dukerupert/dd/config"
+	"github.com/dukerupert/dd/internal/db"
 
 	"github.com/labstack/echo/v4"
-	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -20,23 +19,20 @@ func main() {
 
 	config.PrintConfig(dbConfig, serverConfig)
 
-	// Connect to database
-	db, err := sql.Open("postgres", dbConfig.GetConnectionString())
+	// In your main function
+	database, err := db.NewDB(dbConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Database initialization failed: %v", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	// Configure connection pool
-	db.SetMaxOpenConns(dbConfig.MaxConns)
-	db.SetMaxIdleConns(dbConfig.MaxIdleConns)
-
-	// Test connection
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+	// Use the database connection
+	rows, err := database.DB.Query("SELECT * FROM artists")
+	if err != nil {
+		log.Printf("Query failed: %v", err)
+		return
 	}
-
-	log.Println("Successfully connected to database!")
+	defer rows.Close()
 
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
