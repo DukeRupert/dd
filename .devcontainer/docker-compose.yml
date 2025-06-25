@@ -1,23 +1,42 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - ..:/workspaces:cached
-    command: sleep infinity
-
-  db:
-    image: postgres:16
+  postgres:
+    image: postgres:15-alpine
+    container_name: doxie-discs-db
+    environment:
+      - POSTGRES_DB=doxie_discs
+      - POSTGRES_USER=doxie_user
+      - POSTGRES_PASSWORD=serenity
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=coffee_subscriptions
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - doxie-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doxie_user -d doxie_discs"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Optional: Add pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: doxie-discs-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=logan@fireflysoftware.dev
+      - PGADMIN_DEFAULT_PASSWORD=serenity
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - doxie-network
 
 # Add this volumes section
 volumes:
   postgres_data:
+
+networks:
+  doxie-network:
+    driver: bridge

@@ -1,62 +1,18 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-docker-compose
 {
-	"name": "Existing Docker Compose (Extend)",
-
-	// Update the 'dockerComposeFile' list if you have more compose files or use different names.
-	// The .devcontainer/docker-compose.yml file contains any overrides you need/want to make.
-	"dockerComposeFile": [
-		"./docker-compose.yml",
-		"docker-compose.yml"
-	],
-
-	// The 'service' property is the name of the service for the container that VS Code should
-	// use. Update this value and .devcontainer/docker-compose.yml to the real service name.
-	"service": "app",
-
-	// The optional 'workspaceFolder' property is the path VS Code should open by default when
-	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	
-	"features": {
-		"ghcr.io/devcontainers/features/node:1": {
-			"nodeGypDependencies": true,
-			"installYarnUsingApt": true,
-			"version": "lts",
-			"pnpmVersion": "latest",
-			"nvmVersion": "latest"
-		},
-		"ghcr.io/jungaretti/features/make:1": {},
-		"ghcr.io/r3dpoint/devcontainer-features/tailwindcss-standalone-cli:1": {
-			"version": "latest"
-		},
-		"ghcr.io/dusansimic/devcontainer-features/templ:0": {
-			"version": "latest"
-		},
-		"ghcr.io/devcontainers/features/go:1": {
-			"version": "1.23"
-		},
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"moby": true,
-			"azureDnsAutoDetection": true,
-			"installDockerBuildx": true,
-			"installDockerComposeSwitch": true,
-			"version": "latest",
-			"dockerDashComposeVersion": "v2"
-		},
-		"ghcr.io/itsmechlark/features/postgresql:1": {
-			"version": "16"
-		}
-	},
+	"name": "Default Linux Universal",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/universal:2-linux",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [8080, 5432, 5173],
+	"forwardPorts": [8081, 8080, 5432]
 
 	// Uncomment the next line if you want start specific services in your Docker Compose config.
-	"runServices": ["db"]
+	// "runServices": ["db"]
 
 	// Uncomment the next line if you want to keep your containers running after VS Code shuts down.
 	// "shutdownAction": "none",

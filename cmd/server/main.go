@@ -1,38 +1,39 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/dukerupert/dd/config"
-	"github.com/dukerupert/dd/internal/db"
+	"github.com/dukerupert/dd/internal/database"
+	
 
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
 	// Load configuration
-	dbConfig, serverConfig, err := config.LoadConfig()
+	dbConfig, _, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	config.PrintConfig(dbConfig, serverConfig)
+	// config.PrintConfig(dbConfig, serverConfig)
 
-	// In your main function
-	database, err := db.NewDB(dbConfig)
-	if err != nil {
-		log.Fatalf("Database initialization failed: %v", err)
-	}
-	defer database.Close()
+	// Create database connection
+	db, err := database.New(dbConfig)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
 
-	// Use the database connection
-	rows, err := database.DB.Query("SELECT * FROM artists")
+	// Use the queries
+	ctx := context.Background()
+	_, err = db.Queries.CreateArtist(ctx, "The Beatles")
 	if err != nil {
-		log.Printf("Query failed: %v", err)
-		return
+		log.Fatal(err)
 	}
-	defer rows.Close()
 
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {

@@ -57,8 +57,8 @@ func loadDatabaseConfig() (*DatabaseConfig, error) {
 		Host:     getEnv("DB_HOST", "localhost"),
 		Name:     getEnv("DB_NAME", "doxie_discs"),
 		User:     getEnv("DB_USER", "doxie_user"),
-		Password: getEnv("DB_PASSWORD", "secure_password"),
-		SSLMode:  getEnv("DB_SSLMODE", "prefer"),
+		Password: getEnv("DB_PASSWORD", "serenity"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
 	}
 
 	// Parse integer values
