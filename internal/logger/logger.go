@@ -58,6 +58,7 @@ func Middleware() echo.MiddlewareFunc {
 		LogUserAgent: true,
 		HandleError:  true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			// Use different log levels based on status
 			var event *zerolog.Event
 			switch {
 			case v.Status >= 500:
@@ -69,15 +70,13 @@ func Middleware() echo.MiddlewareFunc {
 			default:
 				event = log.Info()
 			}
-			
+
 			event.
 				Str("method", v.Method).
 				Str("uri", v.URI).
 				Int("status", v.Status).
 				Dur("latency", v.Latency).
-				Str("remote_ip", v.RemoteIP).
-				Str("bytes_in", v.ContentLength).
-				Int64("bytes_out", v.ResponseSize)
+				Str("remote_ip", v.RemoteIP)
 
 			if v.Error != nil {
 				event.Err(v.Error)
@@ -102,14 +101,17 @@ func ErrorHandler() echo.HTTPErrorHandler {
 			}
 		}
 
-		// Log the error
-		log.Error().
-			Err(err).
-			Int("status", code).
-			Str("method", c.Request().Method).
-			Str("path", c.Request().URL.Path).
-			Str("remote_ip", c.RealIP()).
-			Msg("HTTP error")
+		// Only log server errors (5xx) in the error handler
+		// Client errors (4xx) will be logged by the middleware
+		if code >= 500 {
+			log.Error().
+				Err(err).
+				Int("status", code).
+				Str("method", c.Request().Method).
+				Str("path", c.Request().URL.Path).
+				Str("remote_ip", c.RealIP()).
+				Msg("HTTP server error")
+		}
 
 		// Send response if not already committed
 		if !c.Response().Committed {

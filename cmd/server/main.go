@@ -1,16 +1,16 @@
 package main
 
 import (
-	"net/http"
 	"os"
 
 	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/internal/database"
+	"github.com/dukerupert/dd/internal/handlers"
 	"github.com/dukerupert/dd/internal/logger"
 
-	"github.com/rs/zerolog/log"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -43,30 +43,22 @@ func main() {
     }
     defer db.Close()
 
+		// Create handlers with dependencies
+	h := handlers.NewHandlers(db)
+
+	// Setup Echo
 	e := echo.New()
 	e.HideBanner = true
-
-	// Set custom error handler
 	e.HTTPErrorHandler = logger.ErrorHandler()
 
-		// Middleware
-	e.Use(middleware.RequestID()) // Add request ID for tracing
+	// Middleware
+	e.Use(middleware.RequestID())
 	e.Use(middleware.Recover())
 	e.Use(logger.Middleware())
-	
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!")
-	})
-	e.GET("/artists", func(c echo.Context) error  {
-		ctx := c.Request().Context()
+	e.Use(middleware.CORS())
 
-		artists, err := db.Queries.ListArtists(ctx)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to retrieve artists from database")
-		}
-
-		return c.JSON(http.StatusOK, artists)
-	})
+	// Routes
+	setupRoutes(e, h)
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -82,4 +74,25 @@ func main() {
 	if err := e.Start(":" + port); err != nil {
 		log.Fatal().Err(err).Msg("Server startup failed")
 	}
+}
+
+
+func setupRoutes(e *echo.Echo, h *handlers.Handlers) {
+	// API v1 routes
+	api := e.Group("/api/v1")
+
+	// Artist routes
+	artists := api.Group("/artists")
+	artists.POST("", h.CreateArtist)
+	artists.GET("", h.ListArtists)
+	artists.GET("/:id", h.GetArtist)
+	artists.PUT("/:id", h.UpdateArtist)
+	artists.DELETE("/:id", h.DeleteArtist)
+
+	// Health check
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(200, map[string]string{
+			"status": "healthy",
+		})
+	})
 }
