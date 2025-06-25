@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 
@@ -28,16 +27,20 @@ func main() {
     }
     defer db.Close()
 
-	// Use the queries
-	ctx := context.Background()
-	_, err = db.Queries.CreateArtist(ctx, "The Beatles")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
+	e.GET("/artists", func(c echo.Context) error  {
+		ctx := c.Request().Context()
+
+		artists, err := db.Queries.ListArtists(ctx)
+		if err != nil {
+			log.Default().Printf("Failed to retrieve artists from database: %s", err)
+		}
+
+		return c.JSON(http.StatusOK, artists)
+	})
+
 	e.Logger.Fatal(e.Start(":1323"))
 }
