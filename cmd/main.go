@@ -8,16 +8,202 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
+	"text/template"
 	"time"
 
 	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/internal/database"
+	"github.com/dukerupert/dd/internal/db"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+// use a single instance of Validate, it caches struct info
+var validate *validator.Validate
+
+// Validation error response
+type ValidationError struct {
+	Field   string `json:"field"`
+	Tag     string `json:"tag"`
+	Value   string `json:"value"`
+	Message string `json:"message"`
+}
+
+type ValidationErrorResponse struct {
+	Error   string            `json:"error"`
+	Message string            `json:"message"`
+	Details []ValidationError `json:"details"`
+}
+
+// Convert validator errors to friendly messages
+func getValidationErrors(err error) []ValidationError {
+	var validationErrors []ValidationError
+
+	if validatorErrors, ok := err.(validator.ValidationErrors); ok {
+		for _, fieldError := range validatorErrors {
+			validationError := ValidationError{
+				Field: fieldError.Field(),
+				Tag:   fieldError.Tag(),
+				Value: fieldError.Param(),
+			}
+
+			// Custom error messages based on tag
+			switch fieldError.Tag() {
+			case "required":
+				validationError.Message = fmt.Sprintf("%s is required", fieldError.Field())
+			case "min":
+				validationError.Message = fmt.Sprintf("%s must be at least %s characters", fieldError.Field(), fieldError.Param())
+			case "max":
+				validationError.Message = fmt.Sprintf("%s must be at most %s characters", fieldError.Field(), fieldError.Param())
+			case "email":
+				validationError.Message = fmt.Sprintf("%s must be a valid email", fieldError.Field())
+			default:
+				validationError.Message = fmt.Sprintf("%s failed validation for '%s'", fieldError.Field(), fieldError.Tag())
+			}
+
+			validationErrors = append(validationErrors, validationError)
+		}
+	}
+
+	return validationErrors
+}
+
+func writeValidationErrorJSON(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+
+	validationErrors := getValidationErrors(err)
+
+	response := ValidationErrorResponse{
+		Error:   "Validation Failed",
+		Message: "The request contains invalid data",
+		Details: validationErrors,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func bind(r *http.Request, v interface{}) error {
+	if r.Body == nil && r.Method != "GET" {
+		return fmt.Errorf("request body is required")
+	}
+
+	contentType := r.Header.Get("Content-Type")
+
+	switch {
+	case strings.Contains(contentType, "application/json"):
+		return bindJSON(r, v)
+	case strings.Contains(contentType, "application/x-www-form-urlencoded"):
+		return bindForm(r, v)
+	case strings.Contains(contentType, "multipart/form-data"):
+		return bindForm(r, v)
+	default:
+		return fmt.Errorf("unsupported content-type: %s", contentType)
+	}
+}
+
+func bindJSON(r *http.Request, v interface{}) error {
+	defer r.Body.Close()
+
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	return validate.Struct(v)
+}
+
+func bindForm(r *http.Request, v interface{}) error {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("failed to parse form: %w", err)
+	}
+
+	// Use reflection to map form values to struct fields
+	return mapFormToStruct(r, v)
+}
+
+func mapFormToStruct(r *http.Request, v interface{}) error {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("v must be a pointer to struct")
+	}
+
+	rv = rv.Elem()
+	rt := rv.Type()
+
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		fieldValue := rv.Field(i)
+
+		if !fieldValue.CanSet() {
+			continue
+		}
+
+		// Get form tag value
+		formTag := field.Tag.Get("form")
+		if formTag == "" {
+			continue
+		}
+
+		// Get value from form
+		formValue := r.FormValue(formTag)
+		if formValue == "" {
+			continue
+		}
+
+		// Set value based on field type
+		switch fieldValue.Kind() {
+		case reflect.String:
+			fieldValue.SetString(formValue)
+		case reflect.Int, reflect.Int32, reflect.Int64:
+			if intVal, err := strconv.ParseInt(formValue, 10, 64); err == nil {
+				fieldValue.SetInt(intVal)
+			}
+		case reflect.Float32, reflect.Float64:
+			if floatVal, err := strconv.ParseFloat(formValue, 64); err == nil {
+				fieldValue.SetFloat(floatVal)
+			}
+		case reflect.Bool:
+			if boolVal, err := strconv.ParseBool(formValue); err == nil {
+				fieldValue.SetBool(boolVal)
+			}
+		}
+	}
+
+	return validate.Struct(v)
+}
+
+// Regular error response helper (for non-validation errors)
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}
+
+func writeErrorJSON(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	response := ErrorResponse{
+		Error:   http.StatusText(statusCode),
+		Message: message,
+		Code:    statusCode,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func writeJSON(w http.ResponseWriter, data interface{}, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
 
 type contextKey string // avoids collisions
 
@@ -32,7 +218,7 @@ const (
 type Middleware func(http.Handler) http.Handler
 
 // RequestID middleware adds a unique request ID to context
-func RequestIDMiddleware(next http.Handler) http.Handler {
+func (app *App) RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Generate random ID
 		bytes := make([]byte, 8)
@@ -52,14 +238,14 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 }
 
 // Logging middleware adds a logger with request context
-func LoggingMiddleware(next http.Handler) http.Handler {
+func (app *App) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		requestID := GetRequestID(r.Context())
 		userID := GetUserID(r.Context())
 
-		logger := log.With().
+		logger := app.Logger.With().
 			Str("requestID", requestID).
 			Str("userID", userID).
 			Str("method", r.Method).
@@ -79,7 +265,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 }
 
 // Authentication middleware - extracts user from header/token
-func AuthMiddleware(next http.Handler) http.Handler {
+func (app *App) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simple example - in reality you'd validate JWT/session
 		userID := r.Header.Get("X-User-ID")
@@ -96,7 +282,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 // Chain middleware helper
-func ChainMiddleware(middlewares ...Middleware) Middleware {
+func (app *App) ChainMiddleware(middlewares ...Middleware) Middleware {
 	return func(final http.Handler) http.Handler {
 		// Apply middleware in reverse order
 		for _, middleware := range slices.Backward(middlewares) {
@@ -137,18 +323,33 @@ func GetLogger(ctx context.Context) zerolog.Logger {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	requestID := GetRequestID(r.Context())
-	userID := GetUserID(r.Context())
-	startTime := GetStartTime(r.Context())
-	fmt.Fprintf(w, "Hello! Request ID: %s, User: %s, Started: %v\n",
-		requestID, userID, startTime.Format(time.RFC3339))
-}
 
-func userHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.PathValue("id") // Go 1.22+ path parameter
-	requestID := GetRequestID(r.Context())
+	type DashboardStats struct {
+		TotalArtists   int
+		TotalAlbums    int
+		TotalLocations int
+		EstimatedValue string
+	}
 
-	fmt.Fprintf(w, "User profile for %s (Request: %s)\n", userID, requestID)
+	type DashboardData struct {
+		Stats DashboardStats
+	}
+
+	data := DashboardData{
+		Stats: DashboardStats{
+			TotalArtists:   42,
+			TotalAlbums:    156,
+			TotalLocations: 3,
+			EstimatedValue: "2,450",
+		},
+	}
+
+	err := templates.home.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // Protected route example
@@ -174,10 +375,24 @@ func (app *App) getArtistsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type PageData struct {
+		Artists []db.Artist
+	}
+	data := PageData{
+		Artists: artists,
+	}
+
 	// great success!
 	logger.Info().Int("artists", len(artists)).Msg("List artists")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(artists)
+	if r.Header.Get("Content-Type") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(artists)
+	}
+	err = templates.artists.ExecuteTemplate(w, "base.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (app *App) getArtistHandler(w http.ResponseWriter, r *http.Request) {
@@ -212,6 +427,105 @@ func (app *App) getArtistHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(artist)
 }
 
+func (app *App) postArtistHandler(w http.ResponseWriter, r *http.Request) {
+	logger := GetLogger(r.Context())
+
+	type CreateArtistRequest struct {
+		Name string `json:"name" validate:"required,min=1,max=100"`
+	}
+	var req CreateArtistRequest
+
+	if err := bind(r, &req); err != nil {
+		if _, ok := err.(validator.ValidationErrors); ok {
+			writeValidationErrorJSON(w, err)
+			return
+		}
+		writeErrorJSON(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	artist, err := app.DB.Queries.CreateArtist(r.Context(), req.Name)
+	if err != nil {
+		logger.Error().Err(err).Str("Name", req.Name).Msg("Failed to write artist record")
+		writeErrorJSON(w, "Failed to write record", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Info().Int32("artistID", artist.ID).Str("Name", artist.Name).Msg("Artist record created")
+	writeJSON(w, artist, http.StatusOK)
+}
+
+func (app *App) getLocationsHandler(w http.ResponseWriter, r *http.Request) {
+	logger := GetLogger(r.Context())
+
+	// do the records exist?
+	locations, err := app.DB.Queries.ListLocations(r.Context())
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to retrieve artists from database")
+		http.Error(w, "Artists not found", http.StatusInternalServerError)
+		return
+	}
+
+	type PageData struct {
+		Locations []db.Location
+	}
+	data := PageData{
+		Locations: locations,
+	}
+
+	// great success!
+	logger.Info().Int("artists", len(locations)).Msg("List locations")
+	if r.Header.Get("Content-Type") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(locations)
+	}
+	err = templates.locations.ExecuteTemplate(w, "base.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (app *App) getRecordsHandler(w http.ResponseWriter, r *http.Request) {
+	logger := GetLogger(r.Context())
+
+	// do the records exist?
+	records, err := app.DB.Queries.ListRecords(r.Context())
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to retrieve artists from database")
+		http.Error(w, "Artists not found", http.StatusInternalServerError)
+		return
+	}
+
+	type PageData struct {
+		Records []db.Record
+	}
+	data := PageData{
+		Records: records,
+	}
+
+	// great success!
+	logger.Info().Int("records", len(records)).Msg("List records")
+	if r.Header.Get("Content-Type") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	}
+	err = templates.albums.ExecuteTemplate(w, "base.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type Templates struct {
+	home      *template.Template
+	artists   *template.Template
+	locations *template.Template
+	albums    *template.Template
+}
+
+var templates Templates
+
 type App struct {
 	DB     *database.Database
 	Logger zerolog.Logger
@@ -228,11 +542,61 @@ func setupLogger(environment string, logLevel string) zerolog.Logger {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	if environment  == "development" {
+	if environment == "development" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 
 	return log.Logger
+}
+
+func staticHandler(w http.ResponseWriter, r *http.Request) {
+	// Get file extension
+	ext := filepath.Ext(r.URL.Path)
+
+	// Set appropriate MIME type
+	switch ext {
+	case ".css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	case ".js":
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".gif":
+		w.Header().Set("Content-Type", "image/gif")
+	case ".svg":
+		w.Header().Set("Content-Type", "image/svg+xml")
+	}
+
+	// Serve the file
+	fs := http.FileServer(http.Dir("static/"))
+	http.StripPrefix("/static/", fs).ServeHTTP(w, r)
+}
+
+func init() {
+	var err error
+
+	// Parse all templates at startup
+	templates.home, err = template.ParseFiles("templates/base.html", "templates/home.html")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error parsing home template")
+	}
+
+	templates.artists, err = template.ParseFiles("templates/base.html", "templates/artists.html")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error parsing artists template")
+	}
+
+	templates.locations, err = template.ParseFiles("templates/locations.html", "templates/base.html")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error parsing locations template")
+	}
+
+	templates.albums, err = template.ParseFiles("templates/albums.html", "templates/base.html")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error parsing albums template")
+	}
 }
 
 func main() {
@@ -241,7 +605,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
-	
+
 	logger := setupLogger(appConfig.Environment, appConfig.LogLevel)
 
 	// Create database connection
@@ -251,54 +615,35 @@ func main() {
 	}
 	defer db.Close()
 
-	// Start server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = ":1323"
-	} else {
-		port = ":" + port
-	}
-
-	log.Info().
-		Str("port", port).
-		Msg("Starting server")
+	// Initialize the validator
+	validate = validator.New()
 
 	app := &App{DB: db, Logger: logger}
 	mux := http.NewServeMux()
 
 	// Register routes
 	mux.HandleFunc("GET /", homeHandler)
-	mux.HandleFunc("GET /users/{id}", userHandler)
+	mux.HandleFunc("GET /static/", staticHandler)
 	mux.HandleFunc("GET /protected", protectedHandler)
 	mux.HandleFunc("GET /artists", app.getArtistsHandler)
+	mux.HandleFunc("POST /artists", app.postArtistHandler)
 	mux.HandleFunc("GET /artists/{id}", app.getArtistHandler)
+	mux.HandleFunc("GET /locations", app.getLocationsHandler)
+	mux.HandleFunc("GET /albums", app.getRecordsHandler)
+
 
 	// Chain all middleware
-	handler := ChainMiddleware(
-		RequestIDMiddleware,
-		LoggingMiddleware,
+	handler := app.ChainMiddleware(
+		app.RequestIDMiddleware,
+		app.LoggingMiddleware,
 	)(mux)
 
-	fmt.Println("Server starting on :8080")
-	log.Fatal().Err(http.ListenAndServe(":8080", handler))
+	// Serve static files
+	fs := http.FileServer(http.Dir("static/"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	log.Info().
+		Int("port", appConfig.Port).
+		Msg("Starting server")
+	log.Fatal().Err(http.ListenAndServe(fmt.Sprintf(":%d", appConfig.Port), handler))
 }
-
-// func setupRoutes(e *echo.Echo, h *handlers.Handlers) {
-// 	// API v1 routes
-// 	api := e.Group("/api/v1")
-
-// 	// Artist routes
-// 	artists := api.Group("/artists")
-// 	artists.POST("", h.CreateArtist)
-// 	artists.GET("", h.ListArtists)
-// 	artists.GET("/:id", h.GetArtist)
-// 	artists.PUT("/:id", h.UpdateArtist)
-// 	artists.DELETE("/:id", h.DeleteArtist)
-
-// 	// Health check
-// 	e.GET("/health", func(c echo.Context) error {
-// 		return c.JSON(200, map[string]string{
-// 			"status": "healthy",
-// 		})
-// 	})
-// }

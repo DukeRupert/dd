@@ -1,0 +1,80 @@
+/* Base styles */
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fafafa;
+}
+
+/* Header styles */
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #007cba;
+}
+
+/* Navigation styles */
+.nav {
+    margin: 20px 0;
+}
+
+.nav a {
+    margin-right: 15px;
+    text-decoration: none;
+    color: #007cba;
+    font-weight: bold;
+}
+
+.nav a:hover {
+    text-decoration: underline;
+}
+
+/* Footer styles */
+.footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* Artist-specific styles */
+.artist-list {
+    list-style: none;
+    padding: 0;
+}
+
+.artist-item {
+    background: #f5f5f5;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 4px solid #007cba;
+}
+
+.artist-name {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.artist-id {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.artist-dates {
+    color: #888;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.no-artists {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+}

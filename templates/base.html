@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{template "title" .}} - Vinyl Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full bg-gray-50">
+    <div class="min-h-full">
+        <header class="border-b border-gray-200 bg-white">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 justify-between">
+                    <nav class="flex">
+                        <div class="flex shrink-0 items-center">
+                            <h2 class="text-xl font-bold text-indigo-600">Vinyl Collection</h2>
+                        </div>
+                        <div class="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
+                            <a href="/artists" class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">Artists</a>
+                            <a href="/albums" class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">Albums</a>
+                            <a href="/locations" class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">Locations</a>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <div class="py-10 min-h-screen">
+            <main>
+                <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    {{template "content" .}}
+                </div>
+            </main>
+        </div>
+
+        <footer class="border-t border-gray-200 bg-white">
+            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <p class="text-center text-sm text-gray-500">&copy; 2025 Your Vinyl Collection</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
