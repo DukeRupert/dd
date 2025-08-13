@@ -23,10 +23,10 @@ type DatabaseConfig struct {
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host     string
-	Port     int
-	Debug    bool
-	LogLevel string
+	Host        string
+	Port        int
+	LogLevel    string
+	Environment string
 }
 
 // LoadConfig loads configuration from .env file and environment variables
@@ -84,8 +84,9 @@ func loadDatabaseConfig() (*DatabaseConfig, error) {
 
 func loadServerConfig() (*ServerConfig, error) {
 	config := &ServerConfig{
-		Host:     getEnv("SERVER_HOST", "0.0.0.0"),
-		LogLevel: getEnv("LOG_LEVEL", "info"),
+		Host:        getEnv("SERVER_HOST", "0.0.0.0"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Environment: getEnv("ENV", "development"),
 	}
 
 	var err error
@@ -93,11 +94,6 @@ func loadServerConfig() (*ServerConfig, error) {
 	config.Port, err = getEnvAsInt("SERVER_PORT", 8000)
 	if err != nil {
 		return nil, fmt.Errorf("invalid SERVER_PORT: %w", err)
-	}
-
-	config.Debug, err = getEnvAsBool("DEBUG", false)
-	if err != nil {
-		return nil, fmt.Errorf("invalid DEBUG: %w", err)
 	}
 
 	return config, nil
@@ -119,18 +115,6 @@ func getEnvAsInt(key string, defaultValue int) (int, error) {
 		parsed, err := strconv.Atoi(value)
 		if err != nil {
 			return 0, err
-		}
-		return parsed, nil
-	}
-	return defaultValue, nil
-}
-
-// getEnvAsBool gets an environment variable as a boolean with a default value
-func getEnvAsBool(key string, defaultValue bool) (bool, error) {
-	if value, exists := os.LookupEnv(key); exists {
-		parsed, err := strconv.ParseBool(value)
-		if err != nil {
-			return false, err
 		}
 		return parsed, nil
 	}
@@ -169,7 +153,7 @@ func PrintConfig(dbConfig *DatabaseConfig, serverConfig *ServerConfig) {
 	fmt.Printf("\nServer:\n")
 	fmt.Printf("  Host: %s\n", serverConfig.Host)
 	fmt.Printf("  Port: %d\n", serverConfig.Port)
-	fmt.Printf("  Debug: %t\n", serverConfig.Debug)
+	fmt.Printf("  Environment: %t\n", serverConfig.Environment)
 	fmt.Printf("  Log Level: %s\n", serverConfig.LogLevel)
 	fmt.Println("==========================")
 }

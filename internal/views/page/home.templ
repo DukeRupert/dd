@@ -1,0 +1,18 @@
+package page
+
+import (
+    "github.com/dukerupert/dd/internal/views/layout"
+)
+
+templ HomePage() {
+    @layout.BaseLayout(layout.BaseLayoutData{
+        Title:       "Doxie Discs - Home",
+        CurrentPage: "home",
+        PageTitle:   "Home",
+        Breadcrumbs: []layout.Breadcrumb{
+            {Name: "Home"},
+        },
+    }) {
+        <h1>Hello!</h1>
+    }
+}
