@@ -462,6 +462,67 @@ func (app *App) postArtistHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, artist, http.StatusOK)
 }
 
+func (app *App) putArtistHandler(w http.ResponseWriter, r *http.Request) {
+	logger := GetLogger(r.Context())
+
+	// is there an id?
+	id := r.PathValue("id")
+	if id == "" {
+		logger.Info().Msg("Bad request. Missing path id")
+		http.Error(w, "Missing parameter: id", http.StatusBadRequest)
+		return
+	}
+
+	// is it an integer?
+	artistID, err := strconv.ParseInt(id, 10, 32)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid parameter id")
+		http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
+		return
+	}
+
+	// does the record exist?
+	artist, err := app.DB.Queries.GetArtist(r.Context(), int32(artistID))
+	if err != nil {
+		logger.Error().Err(err).Int64("artistID", artistID).Msg("Failed to retrieve artist record")
+		http.Error(w, "Missing record", http.StatusNotFound)
+		return
+	}
+
+	type UpdateArtistRequest struct {
+		Name string `json:"name" form:"name" validate:"required,min=1,max=100"`
+	}
+	var req UpdateArtistRequest
+
+	if err := bind(r, &req); err != nil {
+		if _, ok := err.(validator.ValidationErrors); ok {
+			writeValidationErrorJSON(w, err)
+			return
+		}
+		writeErrorJSON(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	logger.Debug().Int32("artistID", int32(artistID)).Str("artistName", req.Name).Msg("Request data after binding")
+
+	artist, err = app.DB.Queries.UpdateArtist(r.Context(), db.UpdateArtistParams{ID: int32(artistID), Name: req.Name})
+	if err != nil {
+		logger.Error().Err(err).Str("Name", req.Name).Msg("Failed to write artist record")
+		writeErrorJSON(w, "Failed to write record", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Info().Int32("artistID", artist.ID).Str("Name", artist.Name).Msg("Artist record updated")
+
+	if r.Header.Get("HX-Request") == "true" {
+		log.Debug().Msg("HX-Request header is present")
+		tmpl := template.Must(template.ParseFiles("templates/partial/artists-row.html"))
+		tmpl.Execute(w, artist)
+		return
+	}
+	writeJSON(w, artist, http.StatusOK)
+}
+
 func (app *App) getLocationsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := GetLogger(r.Context())
 
@@ -527,6 +588,37 @@ func (app *App) getRecordsHandler(w http.ResponseWriter, r *http.Request) {
 func (app *App) getCreateArtistForm(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("templates/forms/create-artist-form.html"))
 	tmpl.Execute(w, nil)
+}
+
+func (app *App) getUpdateArtistForm(w http.ResponseWriter, r *http.Request) {
+	logger := GetLogger(r.Context())
+
+	// is there an id?
+	id := r.PathValue("id")
+	if id == "" {
+		logger.Info().Msg("Bad request. Missing path id")
+		http.Error(w, "Missing parameter: id", http.StatusBadRequest)
+		return
+	}
+
+	// is it an integer?
+	artistID, err := strconv.ParseInt(id, 10, 32)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid parameter id")
+		http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
+		return
+	}
+
+	// does the record exist?
+	artist, err := app.DB.Queries.GetArtist(r.Context(), int32(artistID))
+	if err != nil {
+		logger.Error().Err(err).Int64("artistID", artistID).Msg("Failed to retrieve artist record")
+		http.Error(w, "Missing record", http.StatusNotFound)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles("templates/forms/update-artist-form.html"))
+	tmpl.Execute(w, artist)
 }
 
 type Templates struct {
@@ -641,6 +733,8 @@ func main() {
 	mux.HandleFunc("POST /artists", app.postArtistHandler)
 	mux.HandleFunc("GET /artists/add-form", app.getCreateArtistForm)
 	mux.HandleFunc("GET /artists/{id}", app.getArtistHandler)
+	mux.HandleFunc("PUT /artists/{id}", app.putArtistHandler)
+	mux.HandleFunc("GET /artists/{id}/update-form", app.getUpdateArtistForm)
 	mux.HandleFunc("GET /locations", app.getLocationsHandler)
 	mux.HandleFunc("GET /albums", app.getRecordsHandler)
 
