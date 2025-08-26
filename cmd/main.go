@@ -431,7 +431,7 @@ func (app *App) postArtistHandler(w http.ResponseWriter, r *http.Request) {
 	logger := GetLogger(r.Context())
 
 	type CreateArtistRequest struct {
-		Name string `json:"name" validate:"required,min=1,max=100"`
+		Name string `json:"name" form:"name" validate:"required,min=1,max=100"`
 	}
 	var req CreateArtistRequest
 
@@ -452,6 +452,13 @@ func (app *App) postArtistHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Info().Int32("artistID", artist.ID).Str("Name", artist.Name).Msg("Artist record created")
+
+	if r.Header.Get("HX-Request") == "true" {
+		log.Debug().Msg("HX-Request header is present")
+		tmpl := template.Must(template.ParseFiles("templates/partial/artists-row.html"))
+		tmpl.Execute(w, artist)
+		return
+	}
 	writeJSON(w, artist, http.StatusOK)
 }
 
@@ -515,6 +522,11 @@ func (app *App) getRecordsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (app *App) getCreateArtistForm(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("templates/forms/create-artist-form.html"))
+	tmpl.Execute(w, nil)
 }
 
 type Templates struct {
@@ -627,10 +639,10 @@ func main() {
 	mux.HandleFunc("GET /protected", protectedHandler)
 	mux.HandleFunc("GET /artists", app.getArtistsHandler)
 	mux.HandleFunc("POST /artists", app.postArtistHandler)
+	mux.HandleFunc("GET /artists/add-form", app.getCreateArtistForm)
 	mux.HandleFunc("GET /artists/{id}", app.getArtistHandler)
 	mux.HandleFunc("GET /locations", app.getLocationsHandler)
 	mux.HandleFunc("GET /albums", app.getRecordsHandler)
-
 
 	// Chain all middleware
 	handler := app.ChainMiddleware(

@@ -1,0 +1,9 @@
+<tr>
+    <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">{{.Name}}</td>
+    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.ID}}</td>
+    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.CreatedAt.Time.Format "Jan 02, 2006"}}</td>
+    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.UpdatedAt.Time.Format "Jan 02, 2006"}}</td>
+    <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
+        <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit<span class="sr-only">, {{.Name}}</span></a>
+    </td>
+</tr>

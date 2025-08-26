@@ -3,8 +3,7 @@ package database
 import (
 	"context"
 	"embed"
-	"fmt"
-	"log"
+	"fmt"	
 	"time"
 
 	"github.com/dukerupert/dd/config"
@@ -14,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/rs/zerolog/log"
 )
 
 //go:embed migrations/*.sql
@@ -54,7 +54,7 @@ func New(DatabaseConfig *config.DatabaseConfig) (*Database, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	log.Println("Successfully connected to database!")
+	log.Debug().Msg("Successfully connected to database!")
 
 	// Run migrations using goose with pgx
 	if err = runMigrations(pool); err != nil {
@@ -62,7 +62,7 @@ func New(DatabaseConfig *config.DatabaseConfig) (*Database, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	log.Println("Successfully executed migrations!")
+	log.Debug().Msg("Successfully executed migrations!")
 
 	// Create queries instance
     queries := db.New(pool)
@@ -104,11 +104,13 @@ func runMigrations(pool *pgxpool.Pool) error {
 	goose.SetBaseFS(embedMigrations)
 
 	if err := goose.SetDialect("postgres"); err != nil {
-		return fmt.Errorf("failed to set goose dialect: %w", err)
+		log.Error().Err(err).Msg("failed to set goose dialect")
+		return err
 	}
 
 	if err := goose.Up(Database, "migrations"); err != nil {
-		return fmt.Errorf("failed to run goose migrations: %w", err)
+		log.Error().Err(err).Msg("failed to run goose migrations")
+		return err
 	}
 
 	return nil

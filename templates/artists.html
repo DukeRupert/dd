@@ -1,70 +1,132 @@
-{{template "base.html" .}}
+{{template "base.html" .}} {{define "title"}}Artists{{end}} {{define "content"}}
+<div class="sm:flex sm:items-center">
+  <div class="sm:flex-auto">
+    <h1 class="text-base font-semibold text-gray-900">Artists</h1>
+    <p class="mt-2 text-sm text-gray-700">
+      A list of all the artists in your vinyl collection including their name,
+      creation date, and last update.
+    </p>
+  </div>
+  <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+    <button
+      type="button"
+      class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+      hx-get="/artists/add-form"
+      hx-target="#artists-content"
+      hx-swap="afterbegin settle:100ms"
+    >
+      Add artist
+    </button>
+  </div>
+</div>
 
-{{define "title"}}Artists{{end}}
-
-{{define "content"}}
-    <div class="sm:flex sm:items-center">
-        <div class="sm:flex-auto">
-            <h1 class="text-2xl/7 font-bold text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight dark:text-white">Artists</h1>
-            <p class="mt-2 text-sm text-gray-700">A list of all the artists in your vinyl collection including their name, creation date, and last update.</p>
-        </div>
-        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <button type="button" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add artist</button>
-        </div>
-    </div>
-
-    {{if .Artists}}
-        <div class="mt-8 flow-root">
-            <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                    <div class="overflow-hidden shadow-sm outline-1 outline-black/5 sm:rounded-lg">
-                        <table class="relative min-w-full divide-y divide-gray-300">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
-                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Updated</th>
-                                    <th scope="col" class="py-3.5 pr-4 pl-3 sm:pr-6">
-                                        <span class="sr-only">Edit</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200 bg-white">
-                                {{range .Artists}}
-                                <tr>
-                                    <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">{{.Name}}</td>
-                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.ID}}</td>
-                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.CreatedAt.Time.Format "Jan 02, 2006"}}</td>
-                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">{{.UpdatedAt.Time.Format "Jan 02, 2006"}}</td>
-                                    <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
-                                        <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit<span class="sr-only">, {{.Name}}</span></a>
-                                    </td>
-                                </tr>
-                                {{end}}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {{else}}
-        <div class="mt-8 text-center py-12">
-            <div class="mx-auto h-12 w-12 text-gray-400">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                </svg>
-            </div>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No artists</h3>
-            <p class="mt-1 text-sm text-gray-500">Get started by adding your first artist to your collection.</p>
-            <div class="mt-6">
-                <button type="button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+<div id="artists-content">
+  {{if .Artists}}
+  <div class="mt-8 flow-root">
+    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+      <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+        <div
+          class="overflow-hidden shadow-sm outline-1 outline-black/5 sm:rounded-lg"
+        >
+          <table class="relative min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  class="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                >
+                  Name
+                </th>
+                <th scope="col" class="py-3.5 pr-4 pl-3 sm:pr-6">
+                  <span class="sr-only">Edit</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="artist-list" class="divide-y divide-gray-200 bg-white">
+              {{range .Artists}}
+              <tr>
+                <td
+                  class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6"
+                >
+                  {{.Name}}
+                </td>
+                <td
+                  class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6"
+                >
+                  <a href="#" class="text-indigo-600 hover:text-indigo-900"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="size-6 ml-auto"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                      />
                     </svg>
-                    Add artist
-                </button>
-            </div>
+                    <span class="sr-only">Edit, {{.Name}}</span></a
+                  >
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
-    {{end}}
+      </div>
+    </div>
+  </div>
+  {{else}}
+  <div class="mt-8 text-center py-12">
+    <div class="mx-auto h-12 w-12 text-gray-400">
+      <svg
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+        ></path>
+      </svg>
+    </div>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No artists</h3>
+    <p class="mt-1 text-sm text-gray-500">
+      Get started by adding your first artist to your collection.
+    </p>
+    <div class="mt-6">
+      <button
+        type="button"
+        class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+      >
+        <svg
+          class="-ml-0.5 mr-1.5 h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"
+          />
+        </svg>
+        Add artist
+      </button>
+    </div>
+  </div>
+</div>
+{{end}}
+<script>
+  const removeForm = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.remove();
+    }
+  };
+</script>
 {{end}}

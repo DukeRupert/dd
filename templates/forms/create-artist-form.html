@@ -1,0 +1,66 @@
+<style>
+#add-artist-form.htmx-added {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+#add-artist-form {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+</style>
+
+<div id="add-artist-form" class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm my-6 dark:divide-white/10 dark:bg-gray-800/50 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10">
+    <div class="px-4 py-5 sm:px-6">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Add New Artist</h3>
+            <button type="button" 
+                    class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                    hx-get="/artists/cancel-form"
+                    hx-target="#artist-list"
+                    hx-swap="afterbegin>
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <div class="px-4 py-5 sm:p-6">
+        <form hx-post="/artists" 
+              hx-target="#artist-list"
+              hx-swap="afterbegin"
+              hx-on::after-request="if(event.detail.successful) removeForm('add-artist-form')"
+              class="space-y-6">
+            
+            <div>
+                <label for="name" class="block text-sm/6 font-medium text-gray-900 dark:text-white">
+                    Artist Name
+                </label>
+                <div class="mt-2">
+                    <input type="text" 
+                           id="name" 
+                           name="name" 
+                           required
+                           class="block w-full rounded-md bg-white px-3 py-1.5 text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-gray-300 dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+                           placeholder="Enter artist name"
+                           autofocus>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button type="button" 
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-md outline-1 -outline-offset-1 outline-gray-300 hover:bg-gray-50 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-gray-300 dark:outline-white/10 dark:hover:bg-white/10 dark:focus:outline-indigo-500"
+                        hx-get="/artists/cancel-form"
+                        hx-target="#add-artist-form"
+                        hx-swap="outerHTML">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:focus:outline-indigo-500">
+                    Add Artist
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
