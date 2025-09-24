@@ -24,7 +24,7 @@ type DatabaseConfig struct {
 // ServerConfig holds server configuration
 type ServerConfig struct {
 	Host        string
-	Port        int
+	Port        string
 	LogLevel    string
 	Environment string
 }
@@ -44,10 +44,10 @@ func LoadConfig() (*DatabaseConfig, *ServerConfig, error) {
 	}
 
 	// Load server configuration
-	serverConfig, err := loadServerConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load server config: %w", err)
-	}
+	serverConfig := loadServerConfig()
+
+	// Bugfix
+	dbConfig.User = "postgres"
 
 	return dbConfig, serverConfig, nil
 }
@@ -82,21 +82,15 @@ func loadDatabaseConfig() (*DatabaseConfig, error) {
 	return config, nil
 }
 
-func loadServerConfig() (*ServerConfig, error) {
+func loadServerConfig() *ServerConfig {
 	config := &ServerConfig{
-		Host:        getEnv("SERVER_HOST", "0.0.0.0"),
+		Host:        getEnv("HOST", "0.0.0.0"),
+		Port:        getEnv("PORT", "1234"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		Environment: getEnv("ENV", "development"),
 	}
 
-	var err error
-
-	config.Port, err = getEnvAsInt("SERVER_PORT", 8000)
-	if err != nil {
-		return nil, fmt.Errorf("invalid SERVER_PORT: %w", err)
-	}
-
-	return config, nil
+	return config
 }
 
 // Helper functions
