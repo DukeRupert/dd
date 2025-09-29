@@ -308,7 +308,7 @@ func homeHandler(t *TemplateRenderer) http.Handler {
 		}
 
 		data := DashboardData{
-			Title: "Home",
+			Title: "Dashboard",
 			Stats: DashboardStats{
 				TotalArtists:   42,
 				TotalAlbums:    156,
@@ -349,9 +349,11 @@ func getArtistsHandler(logger zerolog.Logger, queries *store.Queries, t *Templat
 		}
 
 		type PageData struct {
+			Title string
 			Artists []store.Artist
 		}
 		data := PageData{
+			Title: "Artists",
 			Artists: artists,
 		}
 
@@ -362,7 +364,7 @@ func getArtistsHandler(logger zerolog.Logger, queries *store.Queries, t *Templat
 			json.NewEncoder(w).Encode(artists)
 			return
 		}
-		err = t.Render(w, "index.html", data)
+		err = t.Render(w, "artists", data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -577,9 +579,11 @@ func getRecordsHandler(logger zerolog.Logger, queries *store.Queries, t *Templat
 		}
 
 		type PageData struct {
+			Title string
 			Records []store.Record
 		}
 		data := PageData{
+			Title: "Records",
 			Records: records,
 		}
 
@@ -589,7 +593,7 @@ func getRecordsHandler(logger zerolog.Logger, queries *store.Queries, t *Templat
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(records)
 		}
-		err = t.Render(w, "albums.html", data)
+		err = t.Render(w, "albums", data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

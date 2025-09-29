@@ -34,19 +34,6 @@ func NewTemplateRenderer() *TemplateRenderer {
     }
 }
 
-func debugEmbedded() {
-    err := fs.WalkDir(templateFS, ".", func(path string, d fs.DirEntry, err error) error {
-        if err != nil {
-            return err
-        }
-        fmt.Println("Embedded:", path)
-        return nil
-    })
-    if err != nil {
-        fmt.Println("Error walking embedded files:", err)
-    }
-}
-
 func (tr *TemplateRenderer) LoadTemplates() error {
     layouts, err := fs.Glob(templateFS, "templates/layouts/*.html")
     if err != nil {
@@ -64,15 +51,16 @@ func (tr *TemplateRenderer) LoadTemplates() error {
     }
     
     for _, page := range pages {
+        // home.html -> home
         pageName := filepath.Base(page)
         name := strings.TrimSuffix(pageName, filepath.Ext(pageName))
         
-        files := []string{page}
-        files = append(files, layouts...)
+        // files = layouts + page + partials
+        files := append(layouts, page)
         files = append(files, partials...)
         
         tmpl := template.Must(
-            template.New(pageName).Funcs(tr.funcMap).ParseFS(templateFS, files...),
+            template.New(pageName).Funcs(tr.funcMap).ParseFiles(files...),
         )
         
         // Debug: Print all defined templates
