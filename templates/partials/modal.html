@@ -1,0 +1,37 @@
+<dialog id="myModal">
+    <!-- Modal content goes here -->
+    <h2>Modal Title</h2>
+    <p>This is the content of the modal.</p>
+    <button id="closeModal">Close</button>
+</dialog>
+
+<button id="openModal">Open Modal</button>
+
+<style>
+    /* Basic styling for the dialog element */
+    dialog {
+        border: none;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Styling for the backdrop when the dialog is open */
+    dialog::backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+</style>
+
+<script>
+    const myModal = document.getElementById('myModal');
+    const openModalBtn = document.getElementById('openModal');
+    const closeModalBtn = document.getElementById('closeModal');
+
+    openModalBtn.addEventListener('click', () => {
+        myModal.showModal(); // Opens the modal and makes the background inert
+    });
+
+    closeModalBtn.addEventListener('click', () => {
+        myModal.close(); // Closes the modal
+    });
+</script>

@@ -46,9 +46,6 @@ func LoadConfig() (*DatabaseConfig, *ServerConfig, error) {
 	// Load server configuration
 	serverConfig := loadServerConfig()
 
-	// Bugfix
-	dbConfig.User = "postgres"
-
 	return dbConfig, serverConfig, nil
 }
 

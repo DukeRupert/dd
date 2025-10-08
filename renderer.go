@@ -63,13 +63,6 @@ func (tr *TemplateRenderer) LoadTemplates() error {
             template.New(pageName).Funcs(tr.funcMap).ParseFiles(files...),
         )
         
-        // Debug: Print all defined templates
-        fmt.Printf("Templates defined for page '%s':\n", name)
-        for _, t := range tmpl.Templates() {
-            fmt.Printf("  - %s\n", t.Name())
-        }
-        fmt.Println()
-        
         tr.templates[name] = tmpl
     }
     

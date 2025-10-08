@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
 
-	"github.com/dukerupert/dd/config"
 	"github.com/dukerupert/dd/data/sql/migrations"
 	"github.com/dukerupert/dd/internal/store"
 	"github.com/go-playground/validator/v10"
@@ -18,12 +21,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func migrate(ctx context.Context, provider *goose.Provider) error {
+func migrate(ctx context.Context, provider *goose.Provider, logger *slog.Logger) error {
 	// List migration sources the provider is aware of.
-	log.Println("\n=== migration list ===")
 	sources := provider.ListSources()
 	for _, s := range sources {
-		log.Printf("%-3s %-2v %v\n", s.Type, s.Version, filepath.Base(s.Path))
+		logger.Debug("migration_list", slog.String("source_type", string(s.Type)), slog.Int64("version", s.Version), slog.String("path", filepath.Base(s.Path)))
 	}
 
 	// List status of migrations before applying them.
@@ -31,24 +33,21 @@ func migrate(ctx context.Context, provider *goose.Provider) error {
 	if err != nil {
 		return err
 	}
-	log.Println("\n=== migration status ===")
 	for _, s := range stats {
-		log.Printf("%-3s %-2v %v\n", s.Source.Type, s.Source.Version, s.State)
+		logger.Debug("migration_status", slog.String("source_type", string(s.Source.Type)), slog.Int64("version", s.Source.Version),slog.String("state", string(s.State)))
 	}
 
-	log.Println("\n=== log migration output  ===")
 	results, err := provider.Up(ctx)
 	if err != nil {
 		return err
 	}
-	log.Println("\n=== migration results  ===")
 	for _, r := range results {
-		log.Printf("%-3s %-2v done: %v\n", r.Source.Type, r.Source.Version, r.Duration)
+		logger.Debug("migration_result",slog.String("source_type", string(r.Source.Type)),slog.Int64("version", r.Source.Version),slog.Int64("duration", int64(r.Duration)))
 	}
 	return nil
 }
 
-func newServer(logger zerolog.Logger, queries *store.Queries) http.Handler {
+func newServer(logger *slog.Logger, queries *store.Queries) http.Handler {
 	// Initialize the validator
 	validate = validator.New()
 
@@ -58,31 +57,49 @@ func newServer(logger zerolog.Logger, queries *store.Queries) http.Handler {
 		panic(err)
 	}
 
-	mux := http.NewServeMux()
-
 	// Register routes
+	mux := http.NewServeMux()
 	addRoutes(mux, logger, queries, renderer)
-
-	var handler http.Handler = mux
-	// Apply middleware
-	handler = LoggingMiddleware(handler, logger)
-	handler = RequestIDMiddleware(handler)
-	return handler
+	return mux
 }
 
 func run() error {
-	// Load configuration
-	_, appConfig, err := config.LoadConfig()
-	if err != nil {
-		return err
+	var flagHost = flag.String("host", "localhost", "app host")
+	var flagPort = flag.Int("port", 8080, "port, app port")
+	var flagEnv = flag.String("env", "prod", "values: prod, dev")
+	var flagLogLevel = flag.String("log_level", "info", "values: debug, info, warn, error")
+	var flagDatabase = flag.String("sqlite file", "sqlite.db", "sqlite filename")
+	flag.Parse()
+	
+	// logger level
+	var programLevel = new(slog.LevelVar) // Info by default
+	switch *flagLogLevel {
+	case "error":
+		programLevel.Set(slog.LevelError)
+	case "warn":
+		programLevel.Set(slog.LevelError)
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	default:
+		break
+	}
+	
+	// logger handler
+	var handler slog.Handler
+	switch *flagEnv {
+	case "prod", "production":
+		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	case "dev", "development":
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	case "default":
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	}
 
-	logger := setupLogger(appConfig.Environment, appConfig.LogLevel)
-
-	ctx := context.Background()
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
 
 	// open sqlite database
-	db, err := sql.Open("sqlite", "sqlite.db")
+	db, err := sql.Open("sqlite", *flagDatabase)
 	if err != nil {
 		return err
 	}
@@ -93,8 +110,9 @@ func run() error {
 		return err
 	}
 
+	ctx := context.Background()
 	// run migrations
-	err = migrate(ctx, provider)
+	err = migrate(ctx, provider, logger)
 	if err != nil {
 		return err
 	}
@@ -104,13 +122,10 @@ func run() error {
 
 	srv := newServer(logger, queries)
 
-	logger.Info().
-		Str("port", appConfig.Port).
-		Msg("Starting server")
+	logger.Info("Starting server",slog.String("port", strconv.Itoa(*flagPort)))
 
-	err = http.ListenAndServe(net.JoinHostPort(appConfig.Host, appConfig.Port), srv)
-	if err != nil {
-		logger.Error().Err(err).Msg("HTTP Server error")
+	err = http.ListenAndServe(net.JoinHostPort(*flagHost, strconv.Itoa(*flagPort)), srv) 
+	if err != nil { logger.Error("HTTP Server error", "error", err)
 		return err
 	}
 

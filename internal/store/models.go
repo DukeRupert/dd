@@ -6,7 +6,20 @@ package store
 
 import (
 	"database/sql"
+	"time"
 )
+
+type ApiToken struct {
+	ID         string
+	UserID     string
+	Token      string
+	Name       string
+	Scopes     sql.NullString
+	LastUsedAt sql.NullTime
+	ExpiresAt  time.Time
+	CreatedAt  sql.NullTime
+	UpdatedAt  sql.NullTime
+}
 
 type Artist struct {
 	ID        int64
@@ -39,4 +52,28 @@ type Record struct {
 	PlayCount         sql.NullInt64
 	CreatedAt         sql.NullTime
 	UpdatedAt         sql.NullTime
+}
+
+type Session struct {
+	ID        string
+	UserID    string
+	Token     string
+	IpAddress sql.NullString
+	UserAgent sql.NullString
+	ExpiresAt time.Time
+	CreatedAt sql.NullTime
+	UpdatedAt sql.NullTime
+}
+
+type User struct {
+	ID            string
+	Email         string
+	Username      string
+	PasswordHash  string
+	Role          string
+	IsActive      sql.NullBool
+	EmailVerified sql.NullBool
+	LastLoginAt   sql.NullTime
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
 }
