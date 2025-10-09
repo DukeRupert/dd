@@ -74,7 +74,7 @@ func LoggingMiddleware(h http.Handler, l *slog.Logger) http.Handler {
 		start := time.Now()
 
 		requestID := GetRequestID(r.Context())
-		userID := GetUserID(r.Context())
+		userID, _ := GetUserID(r.Context())
 
 		// Wrap response writer to capture status code
 		rw := &responseWriter{
@@ -111,7 +111,7 @@ func LoggingMiddleware(h http.Handler, l *slog.Logger) http.Handler {
 		// Log response with additional context
 		elapsed := time.Since(start)
 		logLevel := slog.LevelInfo
-		
+
 		// Use different log levels based on status code
 		if rw.statusCode >= 500 {
 			logLevel = slog.LevelError
@@ -151,7 +151,7 @@ func AuthMiddleware(queries *store.Queries) func(http.Handler) http.Handler {
 				session, err := queries.GetSessionByToken(ctx, cookie.Value)
 				if err == nil && session.ExpiresAt.After(time.Now()) {
 					userID = session.UserID
-					
+
 					// Optional: Refresh session expiry on activity
 					// queries.UpdateSessionExpiry(ctx, cookie.Value, time.Now().Add(24*time.Hour))
 				}
@@ -162,7 +162,7 @@ func AuthMiddleware(queries *store.Queries) func(http.Handler) http.Handler {
 				authHeader := r.Header.Get("Authorization")
 				if strings.HasPrefix(authHeader, "Bearer ") {
 					token := strings.TrimPrefix(authHeader, "Bearer ")
-					
+
 					// Validate API token
 					apiToken, err := queries.GetAPITokenByToken(ctx, token)
 					if err == nil && apiToken.ExpiresAt.After(time.Now()) {
@@ -183,16 +183,16 @@ func AuthMiddleware(queries *store.Queries) func(http.Handler) http.Handler {
 // RequireAuthMiddleware enforces authentication - returns 401 if not authenticated
 func RequireAuthMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := GetUserID(r.Context())
-		
-		if userID == "anonymous" || userID == "" {
+		userID, ok := GetUserID(r.Context())
+
+		if !ok || userID == "anonymous" || userID == "" {
 			// Check if HTMX request
 			if r.Header.Get("HX-Request") == "true" {
 				w.Header().Set("HX-Redirect", "/login")
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			
+
 			// Regular request - redirect to login
 			http.Redirect(w, r, "/login?redirect="+r.URL.Path, http.StatusSeeOther)
 			return
@@ -205,9 +205,9 @@ func RequireAuthMiddleware(h http.Handler) http.Handler {
 // RequireAPIAuthMiddleware enforces authentication for API routes - returns JSON error
 func RequireAPIAuthMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := GetUserID(r.Context())
-		
-		if userID == "anonymous" || userID == "" {
+		userID, ok := GetUserID(r.Context())
+
+		if !ok || userID == "anonymous" || userID == "" {
 			writeErrorJSON(w, "Authentication required", http.StatusUnauthorized)
 			return
 		}
@@ -221,9 +221,9 @@ func RequireRoleMiddleware(queries *store.Queries, role string) func(http.Handle
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			userID := GetUserID(ctx)
-			
-			if userID == "anonymous" || userID == "" {
+			userID, ok := GetUserID(r.Context())
+
+			if !ok || userID == "anonymous" || userID == "" {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
@@ -279,11 +279,16 @@ func GetRequestID(ctx context.Context) string {
 	return "unknown"
 }
 
-func GetUserID(ctx context.Context) string {
-	if id, ok := ctx.Value(UserIDKey).(string); ok {
-		return id
+func GetUserID(ctx context.Context) (string, bool) {
+	if id, ok := ctx.Value(UserIDKey).(string); ok && id != "" {
+		return id, true
 	}
-	return "anonymous"
+	return "", false
+}
+
+func IsAuthenticated(ctx context.Context) bool {
+	userID, ok := GetUserID(ctx)
+	return ok && userID != "" && userID != "anonymous"
 }
 
 // RateLimiter tracks request counts per IP address
@@ -382,7 +387,7 @@ func RateLimitMiddleware(next http.Handler, requestsPerMinute int) http.Handler 
 
 		// Add rate limit headers
 		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", requestsPerMinute))
-		
+
 		if !limiter.Allow(ip) {
 			w.Header().Set("Retry-After", "60")
 			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)

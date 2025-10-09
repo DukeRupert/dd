@@ -74,16 +74,6 @@ func (tr *TemplateRenderer) Render(w http.ResponseWriter, name string, data inte
     if !exists {
         return fmt.Errorf("template %s not found", name)
     }
-    
     w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    
-    // Debug: try different template names
-    fmt.Printf("Available templates for %s: ", name)
-    for _, t := range tmpl.Templates() {
-        fmt.Printf("%s ", t.Name())
-    }
-    fmt.Println()
-    
-    // Try executing the layout template instead of the page name
-    return tmpl.ExecuteTemplate(w, "layout", data)
+    return tmpl.Execute(w, data)
 }
