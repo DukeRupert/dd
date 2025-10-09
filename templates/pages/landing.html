@@ -1,0 +1,48 @@
+{{template "minimal.html" .}}
+
+{{define "header"}}
+<header class="bg-white shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-900">Doxie Discs</h1>
+            <div class="flex items-center gap-4">
+                <a href="/login" class="text-indigo-600 hover:text-indigo-800 font-medium">Log In</a>
+                <a href="/signup" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 font-medium">Sign Up</a>
+            </div>
+        </div>
+    </div>
+</header>
+{{end}}
+
+{{define "content"}}
+<div class="text-center">
+    <h2 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+        Your Vinyl Collection, Organized
+    </h2>
+    <p class="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
+        Doxie Discs helps you track and manage your vinyl record collection. 
+        Never lose track of where your records are stored or accidentally buy duplicates again.
+    </p>
+    
+    <div class="mt-10">
+        <a href="/signup" class="rounded-md bg-indigo-600 px-6 py-3 text-lg font-semibold text-white shadow-sm hover:bg-indigo-500">
+            Get Started
+        </a>
+    </div>
+
+    <div class="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3 max-w-4xl mx-auto">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Track Your Collection</h3>
+            <p class="mt-2 text-sm text-gray-600">Keep detailed records of every album, including artist, condition, and catalog information.</p>
+        </div>
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Locate Records Fast</h3>
+            <p class="mt-2 text-sm text-gray-600">Assign storage locations to your records and find them quickly when you want to play them.</p>
+        </div>
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Avoid Duplicates</h3>
+            <p class="mt-2 text-sm text-gray-600">Search your collection before buying to make sure you don't already own that record.</p>
+        </div>
+    </div>
+</div>
+{{end}}

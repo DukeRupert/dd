@@ -11,15 +11,21 @@ import (
 
 func handleLanding(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Render landing page
-		renderer.Render(w, "landing", nil)
+		err := renderer.Render(w, "landing", nil)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
 	})
 }
 
 func handleSignupPage(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Render signup form
-		renderer.Render(w, "signup", nil)
+		err := renderer.Render(w, "signup", nil)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
 	})
 }
 
@@ -39,9 +45,12 @@ func handleSignup(logger *slog.Logger, queries *store.Queries, renderer *Templat
 
 func handleLoginPage(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Render login form
-		renderer.Render(w, "login", nil)
-	})
+        err := renderer.Render(w, "login", nil)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+    })
 }
 
 func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) http.Handler {
