@@ -4,8 +4,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/dukerupert/dd/internal/store"
+	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // HTML Handlers
@@ -80,9 +81,9 @@ func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *Template
 			return
 		}
 
-		// For now, just check if password matches the hash
-		// TODO: Implement proper password hashing with bcrypt
-		if user.PasswordHash != req.Password {
+		// Verify password using bcrypt
+		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+		if err != nil {
 			logger.Warn("Invalid password attempt", slog.String("email", req.Email))
 			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 			return

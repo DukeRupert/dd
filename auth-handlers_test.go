@@ -11,11 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/dukerupert/dd/data/sql/migrations"
 	"github.com/dukerupert/dd/internal/store"
+	"github.com/go-playground/validator/v10"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
+	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
 
@@ -50,6 +51,19 @@ func TestHandleLogin(t *testing.T) {
 	db, queries := setupTestDB(t)
 	defer db.Close()
 
+	// Create a test user with a known password
+	testPassword := "testpassword123"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	// Update the admin user's password to our test password
+	_, err = db.Exec("UPDATE users SET password_hash = ? WHERE email = ?", string(hashedPassword), "admin@example.com")
+	if err != nil {
+		t.Fatalf("Failed to update admin password: %v", err)
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	renderer := NewTemplateRenderer()
 	if err := renderer.LoadTemplates(); err != nil {
@@ -68,7 +82,7 @@ func TestHandleLogin(t *testing.T) {
 		{
 			name:           "valid admin credentials",
 			email:          "admin@example.com",
-			password:       "$2a$10$rKvE8qH5L5o5J5J5J5J5JeN5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J",
+			password:       testPassword,
 			wantStatusCode: http.StatusSeeOther,
 			wantRedirect:   "/dashboard",
 		},
