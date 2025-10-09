@@ -19,73 +19,40 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func handleDashboard(t *TemplateRenderer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// func handleGetArtistsPage(logger *slog.Logger, queries *store.Queries, t *TemplateRenderer) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		type DashboardStats struct {
-			TotalArtists   int
-			TotalAlbums    int
-			TotalLocations int
-			EstimatedValue string
-		}
+// 		// do the records exist?
+// 		artists, err := queries.ListArtists(r.Context())
+// 		if err != nil {
+// 			logger.Error("Failed to retrieve artists from database", slog.String("error", err.Error()))
+// 			http.Error(w, "Artists not found", http.StatusInternalServerError)
+// 			return
+// 		}
 
-		type DashboardData struct {
-			Title string
-			Stats DashboardStats
-		}
+// 		type PageData struct {
+// 			Title   string
+// 			Artists []store.Artist
+// 		}
+// 		data := PageData{
+// 			Title:   "Artists",
+// 			Artists: artists,
+// 		}
 
-		data := DashboardData{
-			Title: "Dashboard",
-			Stats: DashboardStats{
-				TotalArtists:   42,
-				TotalAlbums:    156,
-				TotalLocations: 3,
-				EstimatedValue: "2,450",
-			},
-		}
-
-		err := t.Render(w, "home", data)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
-}
-
-func handleGetArtistsPage(logger *slog.Logger, queries *store.Queries, t *TemplateRenderer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// do the records exist?
-		artists, err := queries.ListArtists(r.Context())
-		if err != nil {
-			logger.Error("Failed to retrieve artists from database", slog.String("error", err.Error()))
-			http.Error(w, "Artists not found", http.StatusInternalServerError)
-			return
-		}
-
-		type PageData struct {
-			Title   string
-			Artists []store.Artist
-		}
-		data := PageData{
-			Title:   "Artists",
-			Artists: artists,
-		}
-
-		// great success!
-		logger.Info("List artists", slog.Int("artists", len(artists)))
-		if r.Header.Get("Content-Type") == "application/json" {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(artists)
-			return
-		}
-		err = t.Render(w, "artists", data)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
-}
+// 		// great success!
+// 		logger.Info("List artists", slog.Int("artists", len(artists)))
+// 		if r.Header.Get("Content-Type") == "application/json" {
+// 			w.Header().Set("Content-Type", "application/json")
+// 			json.NewEncoder(w).Encode(artists)
+// 			return
+// 		}
+// 		err = t.Render(w, "artists", data)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+// 	})
+// }
 
 func getArtistHandler(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -117,43 +84,6 @@ func getArtistHandler(logger *slog.Logger, queries *store.Queries) http.Handler 
 		logger.Info("Artist record retrieved", slog.Int64("artistID", artistID), slog.String("name", artist.Name))
 		json.NewEncoder(w).Encode(artist)
 
-	})
-}
-
-func postArtistHandler(logger *slog.Logger, queries *store.Queries, t *TemplateRenderer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		type CreateArtistRequest struct {
-			Name string `json:"name" form:"name" validate:"required,min=1,max=100"`
-		}
-
-		var req CreateArtistRequest
-		if err := bind(r, &req); err != nil {
-			if _, ok := err.(validator.ValidationErrors); ok {
-				writeErrorJSON(w, "failed to encode response", http.StatusInternalServerError)
-				return
-			}
-			writeErrorJSON(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		artist, err := queries.CreateArtist(r.Context(), req.Name)
-		if err != nil {
-			logger.Error("Failed to write artist record", slog.String("error", err.Error()), slog.String("Name", req.Name))
-			writeErrorJSON(w, "Failed to write record", http.StatusInternalServerError)
-			return
-		}
-
-		logger.Info("Artist record created", slog.Int64("artistID", artist.ID), slog.String("Name", artist.Name))
-
-		if r.Header.Get("HX-Request") == "true" {
-			logger.Debug("HX-Request header is present")
-			err = t.Render(w, "artists-row", artist)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-		writeJSON(w, artist, http.StatusOK)
 	})
 }
 
@@ -464,8 +394,11 @@ func bindForm(r *http.Request, v interface{}) error {
 		return fmt.Errorf("failed to parse form: %w", err)
 	}
 
-	// Use reflection to map form values to struct fields
-	return mapFormToStruct(r, v)
+	if err := mapFormToStruct(r, v); err != nil {
+		return err
+	}
+
+	return validate.Struct(v)
 }
 
 func mapFormToStruct(r *http.Request, v interface{}) error {
@@ -517,6 +450,34 @@ func mapFormToStruct(r *http.Request, v interface{}) error {
 	}
 
 	return validate.Struct(v)
+}
+
+func formatValidationErrorsHTML(errs validator.ValidationErrors) string {
+	var html strings.Builder
+	html.WriteString(`<div class="rounded-md bg-red-50 p-4">`)
+	html.WriteString(`<div class="flex"><div class="ml-3">`)
+	html.WriteString(`<h3 class="text-sm font-medium text-red-800">Validation errors:</h3>`)
+	html.WriteString(`<div class="mt-2 text-sm text-red-700"><ul class="list-disc space-y-1 pl-5">`)
+	
+	for _, fieldError := range errs {
+		var msg string
+		switch fieldError.Tag() {
+		case "required":
+			msg = fmt.Sprintf("%s is required", fieldError.Field())
+		case "min":
+			msg = fmt.Sprintf("%s must be at least %s characters", fieldError.Field(), fieldError.Param())
+		case "max":
+			msg = fmt.Sprintf("%s must be at most %s characters", fieldError.Field(), fieldError.Param())
+		case "email":
+			msg = fmt.Sprintf("%s must be a valid email", fieldError.Field())
+		default:
+			msg = fmt.Sprintf("%s failed validation", fieldError.Field())
+		}
+		html.WriteString(fmt.Sprintf(`<li>%s</li>`, msg))
+	}
+	
+	html.WriteString(`</ul></div></div></div></div>`)
+	return html.String()
 }
 
 // Regular error response helper (for non-validation errors)
