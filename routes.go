@@ -36,7 +36,7 @@ func addRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queries, 
 }
 
 func addHTMLRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) {
-	// Public routes
+		// Public routes
 	mux.Handle("GET /", handleLanding(renderer))
 	mux.Handle("GET /signup", handleSignupPage(renderer))
 	mux.Handle("POST /signup", handleSignup(logger, queries, renderer))
@@ -44,62 +44,46 @@ func addHTMLRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queri
 	mux.Handle("POST /login", handleLogin(logger, queries, renderer))
 	mux.Handle("POST /logout", handleLogout(logger, queries))
 
-	// Protected routes - require authentication
-	protectedMux := http.NewServeMux()
+	// Protected routes - register directly with methods (no sub-mux needed for now)
 	
 	// Dashboard
-	protectedMux.Handle("GET /dashboard", handleDashboard(logger, queries, renderer))
+	mux.Handle("GET /dashboard", handleDashboard(logger, queries, renderer))
 	
 	// Artists
-	protectedMux.Handle("GET /artists", handleGetArtistsPage(logger, queries, renderer))
-	protectedMux.Handle("GET /artists/new", handleGetArtistNewForm(renderer))
-	protectedMux.Handle("POST /artists", handlePostArtist(logger, queries, renderer))
-	protectedMux.Handle("GET /artists/{id}", handleGetArtist(logger, queries, renderer))
-	protectedMux.Handle("GET /artists/{id}/edit", handleGetArtistEditForm(logger, queries, renderer))
-	protectedMux.Handle("PUT /artists/{id}", handlePutArtist(logger, queries, renderer))
-	protectedMux.Handle("DELETE /artists/{id}", handleDeleteArtist(logger, queries))
+	mux.Handle("GET /artists", handleGetArtistsPage(logger, queries, renderer))
+	mux.Handle("GET /artists/new", handleGetArtistNewForm(renderer))
+	mux.Handle("POST /artists", handlePostArtist(logger, queries, renderer))
+	mux.Handle("GET /artists/{id}", handleGetArtist(logger, queries, renderer))
+	mux.Handle("GET /artists/{id}/edit", handleGetArtistEditForm(logger, queries, renderer))
+	mux.Handle("PUT /artists/{id}", handlePutArtist(logger, queries, renderer))
+	mux.Handle("DELETE /artists/{id}", handleDeleteArtist(logger, queries))
 	
 	// Records
-	protectedMux.Handle("GET /records", handleGetRecordsPage(logger, queries, renderer))
-	protectedMux.Handle("GET /records/new", handleGetRecordNewForm(logger, queries, renderer))
-	protectedMux.Handle("POST /records", handlePostRecord(logger, queries, renderer))
-	protectedMux.Handle("GET /records/{id}", handleGetRecord(logger, queries, renderer))
-	protectedMux.Handle("GET /records/{id}/edit", handleGetRecordEditForm(logger, queries, renderer))
-	protectedMux.Handle("PUT /records/{id}", handlePutRecord(logger, queries, renderer))
-	protectedMux.Handle("DELETE /records/{id}", handleDeleteRecord(logger, queries))
-	protectedMux.Handle("POST /records/{id}/play", handlePostRecordPlay(logger, queries, renderer))
+	mux.Handle("GET /records", handleGetRecordsPage(logger, queries, renderer))
+	mux.Handle("GET /records/new", handleGetRecordNewForm(logger, queries, renderer))
+	mux.Handle("POST /records", handlePostRecord(logger, queries, renderer))
+	mux.Handle("GET /records/{id}", handleGetRecord(logger, queries, renderer))
+	mux.Handle("GET /records/{id}/edit", handleGetRecordEditForm(logger, queries, renderer))
+	mux.Handle("PUT /records/{id}", handlePutRecord(logger, queries, renderer))
+	mux.Handle("DELETE /records/{id}", handleDeleteRecord(logger, queries))
+	mux.Handle("POST /records/{id}/play", handlePostRecordPlay(logger, queries, renderer))
 	
 	// Locations
-	protectedMux.Handle("GET /locations", handleGetLocationsPage(logger, queries, renderer))
-	protectedMux.Handle("GET /locations/new", handleGetLocationNewForm(renderer))
-	protectedMux.Handle("POST /locations", handlePostLocation(logger, queries, renderer))
-	protectedMux.Handle("GET /locations/{id}", handleGetLocation(logger, queries, renderer))
-	protectedMux.Handle("GET /locations/{id}/edit", handleGetLocationEditForm(logger, queries, renderer))
-	protectedMux.Handle("PUT /locations/{id}", handlePutLocation(logger, queries, renderer))
-	protectedMux.Handle("DELETE /locations/{id}", handleDeleteLocation(logger, queries))
-	protectedMux.Handle("POST /locations/{id}/set-default", handlePostLocationSetDefault(logger, queries, renderer))
+	mux.Handle("GET /locations", handleGetLocationsPage(logger, queries, renderer))
+	mux.Handle("GET /locations/new", handleGetLocationNewForm(renderer))
+	mux.Handle("POST /locations", handlePostLocation(logger, queries, renderer))
+	mux.Handle("GET /locations/{id}", handleGetLocation(logger, queries, renderer))
+	mux.Handle("GET /locations/{id}/edit", handleGetLocationEditForm(logger, queries, renderer))
+	mux.Handle("PUT /locations/{id}", handlePutLocation(logger, queries, renderer))
+	mux.Handle("DELETE /locations/{id}", handleDeleteLocation(logger, queries))
+	mux.Handle("POST /locations/{id}/set-default", handlePostLocationSetDefault(logger, queries, renderer))
 	
 	// Profile/User
-	protectedMux.Handle("GET /profile", handleGetProfile(logger, queries, renderer))
-	protectedMux.Handle("GET /profile/edit", handleGetProfileEditForm(logger, queries, renderer))
-	protectedMux.Handle("PUT /profile", handlePutProfile(logger, queries, renderer))
-	protectedMux.Handle("GET /profile/password", handleGetPasswordForm(renderer))
-	protectedMux.Handle("PUT /profile/password", handlePutPassword(logger, queries))
-
-	// Mount protected routes (no auth for now during development)
-	// TODO: Uncomment this line when ready to enable authentication
-	// mux.Handle("/", RequireAuthMiddleware(protectedMux))
-	
-	// For now, mount without auth for easy testing
-	mux.Handle("/dashboard", protectedMux)
-	mux.Handle("/artists", protectedMux)
-	mux.Handle("/artists/", protectedMux)
-	mux.Handle("/records", protectedMux)
-	mux.Handle("/records/", protectedMux)
-	mux.Handle("/locations", protectedMux)
-	mux.Handle("/locations/", protectedMux)
-	mux.Handle("/profile", protectedMux)
-	mux.Handle("/profile/", protectedMux)
+	mux.Handle("GET /profile", handleGetProfile(logger, queries, renderer))
+	mux.Handle("GET /profile/edit", handleGetProfileEditForm(logger, queries, renderer))
+	mux.Handle("PUT /profile", handlePutProfile(logger, queries, renderer))
+	mux.Handle("GET /profile/password", handleGetPasswordForm(renderer))
+	mux.Handle("PUT /profile/password", handlePutPassword(logger, queries))
 }
 
 func addAPIRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queries) {

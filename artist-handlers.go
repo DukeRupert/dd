@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -79,13 +80,50 @@ func handlePostArtist(logger *slog.Logger, queries *store.Queries, renderer *Tem
 
 func handleGetArtist(logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Get artist details
-		// - Parse ID from path
-		// - Query artist and their records
-		// - Render artist detail page
+		// is there an id?
 		id := r.PathValue("id")
-		logger.Info("Get artist handler called", slog.String("id", id))
-		renderer.Render(w, "artist-detail", nil)
+		if id == "" {
+			logger.Info("Bad request. Missing path id")
+			http.Error(w, "Missing parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// is it an integer?
+		artistID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			logger.Error("Invalid parameter id", slog.String("error", err.Error()))
+			http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// does the artist exist?
+		artist, err := queries.GetArtist(r.Context(), artistID)
+		if err != nil {
+			logger.Error("Failed to retrieve artist", slog.String("error", err.Error()), slog.Int64("artistID", artistID))
+			http.Error(w, "Artist not found", http.StatusNotFound)
+			return
+		}
+
+		// fetch artist's records
+		records, err := queries.GetRecordsByArtist(r.Context(), sql.NullInt64{Int64: artistID, Valid: true})
+		if err != nil {
+			logger.Error("Failed to retrieve artist records", slog.String("error", err.Error()), slog.Int64("artistID", artistID))
+			// Not fatal - just show empty records list
+			records = []store.Record{}
+		}
+
+		// render artist detail page
+		logger.Info("Artist retrieved", slog.Int64("artistID", artistID), slog.String("name", artist.Name), slog.Int("recordCount", len(records)))
+		
+		err = renderer.Render(w, "artist-detail", map[string]interface{}{
+			"Title":   artist.Name,
+			"Artist":  artist,
+			"Records": records,
+		})
+		if err != nil {
+			logger.Error("Failed to render template", slog.String("error", err.Error()))
+			http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		}
 	})
 }
 

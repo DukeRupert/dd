@@ -54,39 +54,6 @@ import (
 // 	})
 // }
 
-func getArtistHandler(logger *slog.Logger, queries *store.Queries) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// is there an id?
-		id := r.PathValue("id")
-		if id == "" {
-			logger.Info("Bad request. Missing path id")
-			http.Error(w, "Missing parameter: id", http.StatusBadRequest)
-			return
-		}
-
-		// is it an integer?
-		artistID, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			logger.Error("Invalid parameter id", slog.String("error", err.Error()))
-			http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
-			return
-		}
-
-		// does the record exist?
-		artist, err := queries.GetArtist(r.Context(), int64(artistID))
-		if err != nil {
-			logger.Error("Failed to retrieve artist record", slog.String("error", err.Error()), slog.Int64("artistID", artistID))
-			http.Error(w, "Missing record", http.StatusNotFound)
-			return
-		}
-
-		// great success!
-		logger.Info("Artist record retrieved", slog.Int64("artistID", artistID), slog.String("name", artist.Name))
-		json.NewEncoder(w).Encode(artist)
-
-	})
-}
-
 func putArtistHandler(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// is there an id?
