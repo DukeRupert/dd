@@ -42,6 +42,7 @@ func addHTMLRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queri
 	mux.Handle("POST /signup", handleSignup(logger, queries, renderer))
 	mux.Handle("GET /login", handleLoginPage(renderer))
 	mux.Handle("POST /login", handleLogin(logger, queries, renderer))
+	mux.Handle("GET /forgot-password", handleForgotPasswordPage(renderer))
 	mux.Handle("POST /logout", handleLogout(logger, queries))
 
 	// Protected routes - register directly with methods (no sub-mux needed for now)

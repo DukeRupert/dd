@@ -78,6 +78,16 @@ func handleLogout(logger *slog.Logger, queries *store.Queries) http.Handler {
 	})
 }
 
+func handleForgotPasswordPage(t *TemplateRenderer) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        err := t.Render(w, "forgot-password", nil)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+    })
+}
+
 // API Handlers
 
 func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
