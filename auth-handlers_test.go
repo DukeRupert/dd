@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -192,6 +193,174 @@ func TestHandleLogin(t *testing.T) {
 					if session.ExpiresAt.Before(time.Now()) {
 						t.Error("Session already expired")
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestHandleAPILogin(t *testing.T) {
+	// Initialize validator
+	validate = validator.New()
+
+	// Setup
+	db, queries := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test user with a known password
+	testEmail := "apiuser@example.com"
+	testPassword := "testpassword123"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	// Create test user
+	userID := generateUUID()
+	_, err = db.Exec(`
+		INSERT INTO users (id, email, username, password_hash, role, is_active, email_verified)
+		VALUES (?, ?, ?, ?, ?, 1, 1)
+	`, userID, testEmail, "apiuser", string(hashedPassword), "user")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	handler := handleAPILogin(logger, queries)
+
+	tests := []struct {
+		name           string
+		email          string
+		password       string
+		wantStatusCode int
+		checkToken     bool
+	}{
+		{
+			name:           "valid credentials",
+			email:          testEmail,
+			password:       testPassword,
+			wantStatusCode: http.StatusOK,
+			checkToken:     true,
+		},
+		{
+			name:           "invalid email",
+			email:          "notfound@example.com",
+			password:       "anypassword",
+			wantStatusCode: http.StatusUnauthorized,
+			checkToken:     false,
+		},
+		{
+			name:           "invalid password",
+			email:          testEmail,
+			password:       "wrongpassword",
+			wantStatusCode: http.StatusUnauthorized,
+			checkToken:     false,
+		},
+		{
+			name:           "missing email",
+			email:          "",
+			password:       "password",
+			wantStatusCode: http.StatusBadRequest,
+			checkToken:     false,
+		},
+		{
+			name:           "missing password",
+			email:          testEmail,
+			password:       "",
+			wantStatusCode: http.StatusBadRequest,
+			checkToken:     false,
+		},
+		{
+			name:           "invalid email format",
+			email:          "notanemail",
+			password:       "password",
+			wantStatusCode: http.StatusBadRequest,
+			checkToken:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create JSON request body
+			reqBody := map[string]string{
+				"email":    tt.email,
+				"password": tt.password,
+			}
+			jsonBody, _ := json.Marshal(reqBody)
+
+			// Create request
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(string(jsonBody)))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler.ServeHTTP(rr, req)
+
+			// Check status code
+			if rr.Code != tt.wantStatusCode {
+				t.Errorf("handler returned wrong status code: got %v want %v, body: %s", rr.Code, tt.wantStatusCode, rr.Body.String())
+			}
+
+			// Check token was returned
+			if tt.checkToken {
+				var response struct {
+					Token     string    `json:"token"`
+					ExpiresAt time.Time `json:"expires_at"`
+					User      struct {
+						ID       string `json:"id"`
+						Email    string `json:"email"`
+						Username string `json:"username"`
+						Role     string `json:"role"`
+					} `json:"user"`
+				}
+
+				err := json.NewDecoder(rr.Body).Decode(&response)
+				if err != nil {
+					t.Fatalf("Failed to decode response: %v", err)
+				}
+
+				// Verify token is not empty
+				if response.Token == "" {
+					t.Error("Token was not returned")
+				}
+
+				// Verify token is valid
+				claims, err := validateJWT(response.Token)
+				if err != nil {
+					t.Errorf("Token validation failed: %v", err)
+				}
+
+				// Verify claims
+				if claims.UserID != userID {
+					t.Errorf("Token UserID mismatch: got %v want %v", claims.UserID, userID)
+				}
+				if claims.Email != testEmail {
+					t.Errorf("Token Email mismatch: got %v want %v", claims.Email, testEmail)
+				}
+				if claims.Role != "user" {
+					t.Errorf("Token Role mismatch: got %v want %v", claims.Role, "user")
+				}
+
+				// Verify user info in response
+				if response.User.ID != userID {
+					t.Errorf("Response UserID mismatch: got %v want %v", response.User.ID, userID)
+				}
+				if response.User.Email != testEmail {
+					t.Errorf("Response Email mismatch: got %v want %v", response.User.Email, testEmail)
+				}
+				if response.User.Username != "apiuser" {
+					t.Errorf("Response Username mismatch: got %v want %v", response.User.Username, "apiuser")
+				}
+				if response.User.Role != "user" {
+					t.Errorf("Response Role mismatch: got %v want %v", response.User.Role, "user")
+				}
+
+				// Verify expires_at is in the future
+				if response.ExpiresAt.Before(time.Now()) {
+					t.Error("ExpiresAt should be in the future")
 				}
 			}
 		})

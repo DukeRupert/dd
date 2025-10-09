@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -214,13 +215,79 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 
 func handleAPILogin(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: API login
-		// - Parse JSON body
-		// - Validate credentials
-		// - Create API token
-		// - Return token and user data
-		logger.Info("API login handler called")
-		writeJSON(w, map[string]string{"token": "fake-token"}, http.StatusOK)
+		type UserInfo struct {
+			ID       string `json:"id"`
+			Email    string `json:"email"`
+			Username string `json:"username"`
+			Role     string `json:"role"`
+		}
+
+		type LoginRequest struct {
+			Email    string `json:"email" validate:"required,email"`
+			Password string `json:"password" validate:"required"`
+		}
+
+		type LoginResponse struct {
+			Token     string    `json:"token"`
+			ExpiresAt time.Time `json:"expires_at"`
+			User      UserInfo  `json:"user"`
+		}
+
+		var req LoginRequest
+		if err := bind(r, &req); err != nil {
+			if validationErrs, ok := err.(validator.ValidationErrors); ok {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ValidationErrorResponse{
+					Error:   "Validation failed",
+					Message: "Please check your input",
+					Details: getValidationErrors(validationErrs),
+				})
+				return
+			}
+			writeErrorJSON(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Get user by email
+		user, err := queries.GetUserByEmail(r.Context(), req.Email)
+		if err != nil {
+			logger.Warn("API login attempt for non-existent user", slog.String("email", req.Email))
+			writeErrorJSON(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// Verify password using bcrypt
+		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+		if err != nil {
+			logger.Warn("API invalid password attempt", slog.String("email", req.Email))
+			writeErrorJSON(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// Generate JWT token
+		token, err := generateJWT(user.ID, user.Email, user.Role)
+		if err != nil {
+			logger.Error("Failed to generate JWT", slog.String("error", err.Error()))
+			writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		logger.Info("User logged in via API", slog.String("userID", user.ID), slog.String("email", user.Email))
+
+		// Return token and user info
+		response := LoginResponse{
+			Token:     token,
+			ExpiresAt: time.Now().Add(JWTExpiration),
+			User: UserInfo{
+				ID:       user.ID,
+				Email:    user.Email,
+				Username: user.Username,
+				Role:     user.Role,
+			},
+		}
+
+		writeJSON(w, response, http.StatusOK)
 	})
 }
 
