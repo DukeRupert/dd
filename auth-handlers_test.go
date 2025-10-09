@@ -381,7 +381,7 @@ func TestHandleSignup(t *testing.T) {
 		t.Fatalf("Failed to load templates: %v", err)
 	}
 
-	handler := handleSignup(logger, queries, renderer)
+	handler := handleSignup(logger, queries)
 
 	tests := []struct {
 		name           string
@@ -576,7 +576,7 @@ func TestHandleSignupDuplicateUsername(t *testing.T) {
 		t.Fatalf("Failed to load templates: %v", err)
 	}
 
-	handler := handleSignup(logger, queries, renderer)
+	handler := handleSignup(logger, queries)
 
 	// First signup - should succeed
 	form := url.Values{}

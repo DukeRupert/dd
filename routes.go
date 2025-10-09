@@ -39,7 +39,7 @@ func addHTMLRoutes(mux *http.ServeMux, logger *slog.Logger, queries *store.Queri
 		// Public routes
 	mux.Handle("GET /", handleLanding(renderer))
 	mux.Handle("GET /signup", handleSignupPage(renderer))
-	mux.Handle("POST /signup", handleSignup(logger, queries, renderer))
+	mux.Handle("POST /signup", handleSignup(logger, queries))
 	mux.Handle("GET /login", handleLoginPage(renderer))
 	mux.Handle("POST /login", handleLogin(logger, queries, renderer))
 	mux.Handle("GET /forgot-password", handleForgotPasswordPage(renderer))

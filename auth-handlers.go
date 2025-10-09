@@ -13,36 +13,55 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type UserInfo struct {
+	ID       string `form:"id" json:"id"`
+	Email    string `form:"email" json:"email"`
+	Username string `form:"username" json:"username"`
+	Role     string `form:"role" json:"role"`
+}
+
+type LoginRequest struct {
+	Email    string `form:"email" json:"email" validate:"required,email"`
+	Password string `form:"password" json:"password" validate:"required"`
+}
+
+type LoginResponse struct {
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	User      UserInfo  `json:"user"`
+}
+
+type SignupRequest struct {
+	Email    string `form:"email" validate:"required,email"`
+	Username string `form:"username" validate:"required,min=3,max=50"`
+	Password string `form:"password" validate:"required,min=8"`
+}
+
+
 // HTML Handlers
 
 func handleLanding(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := renderer.Render(w, "landing", nil)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }
 
 func handleSignupPage(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := renderer.Render(w, "signup", nil)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }
 
-func handleSignup(logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) http.Handler {
+func handleSignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		type SignupRequest struct {
-			Email    string `form:"email" validate:"required,email"`
-			Username string `form:"username" validate:"required,min=3,max=50"`
-			Password string `form:"password" validate:"required,min=8"`
-		}
-
 		var req SignupRequest
 		if err := bind(r, &req); err != nil {
 			if validationErrs, ok := err.(validator.ValidationErrors); ok {
@@ -108,21 +127,16 @@ func handleSignup(logger *slog.Logger, queries *store.Queries, renderer *Templat
 
 func handleLoginPage(renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        err := renderer.Render(w, "login", nil)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-    })
+		err := renderer.Render(w, "login", nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
 }
 
 func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		type LoginRequest struct {
-			Email    string `form:"email" validate:"required,email"`
-			Password string `form:"password" validate:"required"`
-		}
-
 		var req LoginRequest
 		if err := bind(r, &req); err != nil {
 			if validationErrs, ok := err.(validator.ValidationErrors); ok {
@@ -160,9 +174,9 @@ func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *Template
 
 		// Set session cookie
 		setSessionCookie(w, token)
-		
+
 		logger.Info("User logged in successfully", slog.String("userID", user.ID), slog.String("email", user.Email))
-		
+
 		// Redirect to dashboard
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	})
@@ -189,24 +203,71 @@ func handleLogout(logger *slog.Logger, queries *store.Queries) http.Handler {
 }
 
 func handleForgotPasswordPage(t *TemplateRenderer) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        err := t.Render(w, "forgot-password", nil)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-    })
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := t.Render(w, "forgot-password", nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
 }
 
 // API Handlers
 
 func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: API signup
-		// - Parse JSON body
-		// - Validate input
-		// - Hash password
-		// - Create user
+		
+
+		var req SignupRequest
+		if err := bind(r, &req); err != nil {
+			if validationErrs, ok := err.(validator.ValidationErrors); ok {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ValidationErrorResponse{
+					Error:   "Validation failed",
+					Message: "Please check your input",
+					Details: getValidationErrors(validationErrs),
+				})
+				return
+			}
+			writeErrorJSON(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Check if email already exists
+		_, err := queries.GetUserByEmail(r.Context(), req.Email)
+		if err == nil {
+			// User already exists
+			http.Error(w, "Email already registered", http.StatusConflict)
+			return
+		}
+
+		// Hash password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			logger.Error("Failed to hash password", slog.String("error", err.Error()))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Generate UUID for user
+		userID := generateUUID()
+
+		// Create user
+		ctx := r.Context()
+		_, err = queries.CreateUser(ctx, store.CreateUserParams{
+			ID:           userID,
+			Email:        req.Email,
+			Username:     req.Username,
+			PasswordHash: string(hashedPassword),
+			Role:         "user",
+		})
+		if err != nil {
+			logger.Error("Failed to create user", slog.String("error", err.Error()))
+			http.Error(w, "Failed to create account", http.StatusInternalServerError)
+			return
+		}
+
 		// - Return user data (without password)
 		logger.Info("API signup handler called")
 		writeJSON(w, map[string]string{"message": "signup endpoint"}, http.StatusCreated)
@@ -215,24 +276,6 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 
 func handleAPILogin(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		type UserInfo struct {
-			ID       string `json:"id"`
-			Email    string `json:"email"`
-			Username string `json:"username"`
-			Role     string `json:"role"`
-		}
-
-		type LoginRequest struct {
-			Email    string `json:"email" validate:"required,email"`
-			Password string `json:"password" validate:"required"`
-		}
-
-		type LoginResponse struct {
-			Token     string    `json:"token"`
-			ExpiresAt time.Time `json:"expires_at"`
-			User      UserInfo  `json:"user"`
-		}
-
 		var req LoginRequest
 		if err := bind(r, &req); err != nil {
 			if validationErrs, ok := err.(validator.ValidationErrors); ok {
@@ -312,11 +355,11 @@ func generateUUID() string {
 		// Fallback to timestamp-based ID
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-	
+
 	// Set version (4) and variant bits
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
-	
+
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
