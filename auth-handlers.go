@@ -216,7 +216,12 @@ func handleForgotPasswordPage(t *TemplateRenderer) http.Handler {
 
 func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
+		type SignupResponse struct {
+			Token     string    `json:"token"`
+			ExpiresAt time.Time `json:"expires_at"`
+			User      UserInfo  `json:"user"`
+		}
 
 		var req SignupRequest
 		if err := bind(r, &req); err != nil {
@@ -238,7 +243,7 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 		_, err := queries.GetUserByEmail(r.Context(), req.Email)
 		if err == nil {
 			// User already exists
-			http.Error(w, "Email already registered", http.StatusConflict)
+			writeErrorJSON(w, "Email already registered", http.StatusConflict)
 			return
 		}
 
@@ -246,7 +251,7 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			logger.Error("Failed to hash password", slog.String("error", err.Error()))
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -255,7 +260,7 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 
 		// Create user
 		ctx := r.Context()
-		_, err = queries.CreateUser(ctx, store.CreateUserParams{
+		user, err := queries.CreateUser(ctx, store.CreateUserParams{
 			ID:           userID,
 			Email:        req.Email,
 			Username:     req.Username,
@@ -264,13 +269,33 @@ func handleAPISignup(logger *slog.Logger, queries *store.Queries) http.Handler {
 		})
 		if err != nil {
 			logger.Error("Failed to create user", slog.String("error", err.Error()))
-			http.Error(w, "Failed to create account", http.StatusInternalServerError)
+			writeErrorJSON(w, "Failed to create account", http.StatusInternalServerError)
 			return
 		}
 
-		// - Return user data (without password)
-		logger.Info("API signup handler called")
-		writeJSON(w, map[string]string{"message": "signup endpoint"}, http.StatusCreated)
+		logger.Info("User created via API", slog.String("userID", userID), slog.String("email", req.Email))
+
+		// Generate JWT token
+		token, err := generateJWT(user.ID, user.Email, user.Role)
+		if err != nil {
+			logger.Error("Failed to generate JWT", slog.String("error", err.Error()))
+			writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Return token and user info
+		response := SignupResponse{
+			Token:     token,
+			ExpiresAt: time.Now().Add(JWTExpiration),
+			User: UserInfo{
+				ID:       user.ID,
+				Email:    user.Email,
+				Username: user.Username,
+				Role:     user.Role,
+			},
+		}
+
+		writeJSON(w, response, http.StatusCreated)
 	})
 }
 

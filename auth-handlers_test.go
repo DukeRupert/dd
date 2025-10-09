@@ -367,6 +367,194 @@ func TestHandleAPILogin(t *testing.T) {
 	}
 }
 
+func TestHandleAPISignup(t *testing.T) {
+	// Initialize validator
+	validate = validator.New()
+
+	// Setup
+	db, queries := setupTestDB(t)
+	defer db.Close()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	handler := handleAPISignup(logger, queries)
+
+	tests := []struct {
+		name           string
+		email          string
+		username       string
+		password       string
+		wantStatusCode int
+		checkUser      bool
+	}{
+		{
+			name:           "valid signup",
+			email:          "newuser@example.com",
+			username:       "newuser",
+			password:       "password123",
+			wantStatusCode: http.StatusCreated,
+			checkUser:      true,
+		},
+		{
+			name:           "duplicate email",
+			email:          "admin@example.com", // Already exists from migration
+			username:       "newuser",
+			password:       "password123",
+			wantStatusCode: http.StatusConflict,
+			checkUser:      false,
+		},
+		{
+			name:           "missing email",
+			email:          "",
+			username:       "newuser",
+			password:       "password123",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+		{
+			name:           "invalid email format",
+			email:          "notanemail",
+			username:       "newuser",
+			password:       "password123",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+		{
+			name:           "missing username",
+			email:          "test@example.com",
+			username:       "",
+			password:       "password123",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+		{
+			name:           "username too short",
+			email:          "test@example.com",
+			username:       "ab",
+			password:       "password123",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+		{
+			name:           "missing password",
+			email:          "test@example.com",
+			username:       "newuser",
+			password:       "",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+		{
+			name:           "password too short",
+			email:          "test@example.com",
+			username:       "newuser",
+			password:       "short",
+			wantStatusCode: http.StatusBadRequest,
+			checkUser:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create JSON request body
+			reqBody := map[string]string{
+				"email":    tt.email,
+				"username": tt.username,
+				"password": tt.password,
+			}
+			jsonBody, _ := json.Marshal(reqBody)
+
+			// Create request
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/signup", strings.NewReader(string(jsonBody)))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler.ServeHTTP(rr, req)
+
+			// Check status code
+			if rr.Code != tt.wantStatusCode {
+				t.Errorf("handler returned wrong status code: got %v want %v, body: %s", rr.Code, tt.wantStatusCode, rr.Body.String())
+			}
+
+			// Verify user was created and check response
+			if tt.checkUser {
+				var response struct {
+					Token     string    `json:"token"`
+					ExpiresAt time.Time `json:"expires_at"`
+					User      struct {
+						ID       string `json:"id"`
+						Email    string `json:"email"`
+						Username string `json:"username"`
+						Role     string `json:"role"`
+					} `json:"user"`
+				}
+
+				err := json.NewDecoder(rr.Body).Decode(&response)
+				if err != nil {
+					t.Fatalf("Failed to decode response: %v, body: %s", err, rr.Body.String())
+				}
+
+				// Verify token is not empty
+				if response.Token == "" {
+					t.Error("Token was not returned")
+				}
+
+				// Verify token is valid
+				claims, err := validateJWT(response.Token)
+				if err != nil {
+					t.Errorf("Token validation failed: %v", err)
+				}
+
+				// Verify claims match user
+				if claims.Email != tt.email {
+					t.Errorf("Token Email mismatch: got %v want %v", claims.Email, tt.email)
+				}
+				if claims.Role != "user" {
+					t.Errorf("Token Role mismatch: got %v want %v", claims.Role, "user")
+				}
+
+				// Verify user info in response
+				if response.User.ID == "" {
+					t.Error("Response UserID is empty")
+				}
+				if response.User.Email != tt.email {
+					t.Errorf("Response Email mismatch: got %v want %v", response.User.Email, tt.email)
+				}
+				if response.User.Username != tt.username {
+					t.Errorf("Response Username mismatch: got %v want %v", response.User.Username, tt.username)
+				}
+				if response.User.Role != "user" {
+					t.Errorf("Response Role mismatch: got %v want %v", response.User.Role, "user")
+				}
+
+				// Verify expires_at is in the future
+				if response.ExpiresAt.Before(time.Now()) {
+					t.Error("ExpiresAt should be in the future")
+				}
+
+				// Verify user exists in database
+				user, err := queries.GetUserByEmail(req.Context(), tt.email)
+				if err != nil {
+					t.Errorf("User was not created in database: %v", err)
+				}
+
+				// Verify password was hashed
+				if user.PasswordHash == tt.password {
+					t.Error("Password was not hashed")
+				}
+
+				// Verify password hash is valid
+				err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(tt.password))
+				if err != nil {
+					t.Error("Password hash is invalid")
+				}
+			}
+		})
+	}
+}
+
 func TestHandleSignup(t *testing.T) {
 	// Initialize validator
 	validate = validator.New()
