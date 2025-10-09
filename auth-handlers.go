@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/dukerupert/dd/internal/store"
 )
 
@@ -55,13 +56,44 @@ func handleLoginPage(renderer *TemplateRenderer) http.Handler {
 
 func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *TemplateRenderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Process login form
-		// - Parse form data
-		// - Validate credentials
-		// - Create session
-		// - Set cookie
-		// - Redirect to dashboard or original URL
-		logger.Info("Login handler called")
+		type LoginRequest struct {
+			Email    string `form:"email" validate:"required,email"`
+			Password string `form:"password" validate:"required"`
+		}
+
+		var req LoginRequest
+		if err := bind(r, &req); err != nil {
+			if validationErrs, ok := err.(validator.ValidationErrors); ok {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(formatValidationErrorsHTML(validationErrs)))
+				return
+			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Get user by email
+		user, err := queries.GetUserByEmail(r.Context(), req.Email)
+		if err != nil {
+			logger.Warn("Login attempt for non-existent user", slog.String("email", req.Email))
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// For now, just check if password matches the hash
+		// TODO: Implement proper password hashing with bcrypt
+		if user.PasswordHash != req.Password {
+			logger.Warn("Invalid password attempt", slog.String("email", req.Email))
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// TODO: Create session
+		// TODO: Set session cookie
+		
+		logger.Info("User logged in successfully", slog.String("userID", user.ID), slog.String("email", user.Email))
+		
+		// Redirect to dashboard
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	})
 }
