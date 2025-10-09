@@ -17,7 +17,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
-	"github.com/rs/zerolog"
 	_ "modernc.org/sqlite"
 )
 
@@ -79,7 +78,7 @@ func run() error {
 	case "warn":
 		programLevel.Set(slog.LevelError)
 	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		programLevel.Set(slog.LevelDebug)
 	default:
 		break
 	}
