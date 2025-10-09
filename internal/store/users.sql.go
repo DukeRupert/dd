@@ -88,6 +88,44 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (id, email, username, password_hash, role, is_active, email_verified)
+VALUES (?, ?, ?, ?, ?, 1, 0)
+RETURNING id, email, username, password_hash, role, is_active, email_verified, last_login_at, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	ID           string
+	Email        string
+	Username     string
+	PasswordHash string
+	Role         string
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.ID,
+		arg.Email,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Role,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.IsActive,
+		&i.EmailVerified,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions WHERE token = ?
 `
