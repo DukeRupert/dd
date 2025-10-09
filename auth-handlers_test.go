@@ -10,14 +10,15 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dukerupert/dd/data/sql/migrations"
 	"github.com/dukerupert/dd/internal/store"
 	"github.com/go-playground/validator/v10"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
-	_ "modernc.org/sqlite"
 	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
 )
 
 func setupTestDB(t *testing.T) (*sql.DB, *store.Queries) {
@@ -79,6 +80,7 @@ func TestHandleLogin(t *testing.T) {
 		password       string
 		wantStatusCode int
 		wantRedirect   string
+		checkSession   bool
 	}{
 		{
 			name:           "valid admin credentials",
@@ -86,6 +88,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       testPassword,
 			wantStatusCode: http.StatusSeeOther,
 			wantRedirect:   "/dashboard",
+			checkSession:   true,
 		},
 		{
 			name:           "invalid email",
@@ -93,6 +96,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       "anypassword",
 			wantStatusCode: http.StatusUnauthorized,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "invalid password",
@@ -100,6 +104,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       "wrongpassword",
 			wantStatusCode: http.StatusUnauthorized,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "missing email",
@@ -107,6 +112,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       "password",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "missing password",
@@ -114,6 +120,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       "",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "invalid email format",
@@ -121,6 +128,7 @@ func TestHandleLogin(t *testing.T) {
 			password:       "password",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 	}
 
@@ -153,6 +161,39 @@ func TestHandleLogin(t *testing.T) {
 					t.Errorf("handler returned wrong redirect: got %v want %v", location, tt.wantRedirect)
 				}
 			}
+
+			// Check session was created
+			if tt.checkSession {
+				cookies := rr.Result().Cookies()
+				var sessionCookie *http.Cookie
+				for _, cookie := range cookies {
+					if cookie.Name == SessionCookieName {
+						sessionCookie = cookie
+						break
+					}
+				}
+
+				if sessionCookie == nil {
+					t.Error("Session cookie was not set")
+				} else {
+					// Verify session exists in database
+					session, err := queries.GetSessionByToken(req.Context(), sessionCookie.Value)
+					if err != nil {
+						t.Errorf("Session was not created in database: %v", err)
+					}
+
+					// Verify session belongs to the user
+					user, _ := queries.GetUserByEmail(req.Context(), tt.email)
+					if session.UserID != user.ID {
+						t.Errorf("Session user_id mismatch: got %v want %v", session.UserID, user.ID)
+					}
+
+					// Verify session hasn't expired
+					if session.ExpiresAt.Before(time.Now()) {
+						t.Error("Session already expired")
+					}
+				}
+			}
 		})
 	}
 }
@@ -180,6 +221,7 @@ func TestHandleSignup(t *testing.T) {
 		password       string
 		wantStatusCode int
 		wantRedirect   string
+		checkSession   bool
 	}{
 		{
 			name:           "valid signup",
@@ -188,6 +230,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusSeeOther,
 			wantRedirect:   "/dashboard",
+			checkSession:   true,
 		},
 		{
 			name:           "duplicate email",
@@ -196,6 +239,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusConflict,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "missing email",
@@ -204,6 +248,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "invalid email format",
@@ -212,6 +257,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "missing username",
@@ -220,6 +266,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "username too short",
@@ -228,6 +275,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "password123",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "missing password",
@@ -236,6 +284,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 		{
 			name:           "password too short",
@@ -244,6 +293,7 @@ func TestHandleSignup(t *testing.T) {
 			password:       "short",
 			wantStatusCode: http.StatusBadRequest,
 			wantRedirect:   "",
+			checkSession:   false,
 		},
 	}
 
@@ -306,6 +356,39 @@ func TestHandleSignup(t *testing.T) {
 					t.Errorf("Role should be 'user', got %v", user.Role)
 				}
 			}
+
+			// Check session was created
+			if tt.checkSession {
+				cookies := rr.Result().Cookies()
+				var sessionCookie *http.Cookie
+				for _, cookie := range cookies {
+					if cookie.Name == SessionCookieName {
+						sessionCookie = cookie
+						break
+					}
+				}
+
+				if sessionCookie == nil {
+					t.Error("Session cookie was not set")
+				} else {
+					// Verify session exists in database
+					session, err := queries.GetSessionByToken(req.Context(), sessionCookie.Value)
+					if err != nil {
+						t.Errorf("Session was not created in database: %v", err)
+					}
+
+					// Verify session belongs to the user
+					user, _ := queries.GetUserByEmail(req.Context(), tt.email)
+					if session.UserID != user.ID {
+						t.Errorf("Session user_id mismatch: got %v want %v", session.UserID, user.ID)
+					}
+
+					// Verify session hasn't expired
+					if session.ExpiresAt.Before(time.Now()) {
+						t.Error("Session already expired")
+					}
+				}
+			}
 		})
 	}
 }
@@ -358,5 +441,81 @@ func TestHandleSignupDuplicateUsername(t *testing.T) {
 	// The exact status code depends on how you handle database constraint violations
 	if rr.Code == http.StatusSeeOther {
 		t.Error("Second signup should have failed due to duplicate username")
+	}
+}
+
+func TestHandleLogout(t *testing.T) {
+	// Initialize validator
+	validate = validator.New()
+
+	// Setup
+	db, queries := setupTestDB(t)
+	defer db.Close()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	
+	handler := handleLogout(logger, queries)
+
+	// Create a test session
+	testUserID := "test-user-id"
+	testToken := "test-session-token"
+	sessionID := generateUUID()
+	
+	_, err := queries.CreateSession(context.Background(), store.CreateSessionParams{
+		ID:        sessionID,
+		UserID:    testUserID,
+		Token:     testToken,
+		IpAddress: toNullString("127.0.0.1"),
+		UserAgent: toNullString("test-agent"),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test session: %v", err)
+	}
+
+	// Create request with session cookie
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  SessionCookieName,
+		Value: testToken,
+	})
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler.ServeHTTP(rr, req)
+
+	// Check status code
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusSeeOther)
+	}
+
+	// Check redirect location
+	location := rr.Header().Get("Location")
+	if location != "/" {
+		t.Errorf("handler returned wrong redirect: got %v want %v", location, "/")
+	}
+
+	// Verify session was deleted from database
+	_, err = queries.GetSessionByToken(context.Background(), testToken)
+	if err == nil {
+		t.Error("Session was not deleted from database")
+	}
+
+	// Verify cookie was cleared
+	cookies := rr.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == SessionCookieName {
+			sessionCookie = cookie
+			break
+		}
+	}
+
+	if sessionCookie == nil {
+		t.Error("Session cookie was not set in response")
+	} else if sessionCookie.MaxAge != -1 {
+		t.Errorf("Session cookie MaxAge should be -1, got %v", sessionCookie.MaxAge)
 	}
 }

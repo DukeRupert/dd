@@ -87,10 +87,18 @@ func handleSignup(logger *slog.Logger, queries *store.Queries, renderer *Templat
 			return
 		}
 
-		logger.Info("User created successfully", slog.String("userID", userID), slog.String("email", req.Email))
+		// Create session
+		token, err := createSession(r.Context(), queries, userID, r)
+		if err != nil {
+			logger.Error("Failed to create session", slog.String("error", err.Error()))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 
-		// TODO: Create session
-		// TODO: Set session cookie
+		// Set session cookie
+		setSessionCookie(w, token)
+
+		logger.Info("User created successfully", slog.String("userID", userID), slog.String("email", req.Email))
 
 		// Redirect to dashboard
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
@@ -141,8 +149,16 @@ func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *Template
 			return
 		}
 
-		// TODO: Create session
-		// TODO: Set session cookie
+		// Create session
+		token, err := createSession(r.Context(), queries, user.ID, r)
+		if err != nil {
+			logger.Error("Failed to create session", slog.String("error", err.Error()))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Set session cookie
+		setSessionCookie(w, token)
 		
 		logger.Info("User logged in successfully", slog.String("userID", user.ID), slog.String("email", user.Email))
 		
@@ -153,12 +169,20 @@ func handleLogin(logger *slog.Logger, queries *store.Queries, renderer *Template
 
 func handleLogout(logger *slog.Logger, queries *store.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Process logout
-		// - Get session token from cookie
-		// - Delete session from database
-		// - Clear cookie
-		// - Redirect to landing page
-		logger.Info("Logout handler called")
+		// Get session token from cookie
+		cookie, err := r.Cookie(SessionCookieName)
+		if err == nil && cookie.Value != "" {
+			// Delete session from database
+			err = queries.DeleteSession(r.Context(), cookie.Value)
+			if err != nil {
+				logger.Error("Failed to delete session", slog.String("error", err.Error()))
+			}
+		}
+
+		// Clear cookie
+		clearSessionCookie(w)
+
+		logger.Info("User logged out")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 }
