@@ -49,7 +49,7 @@ func (h *Handler) GetArtist() http.HandlerFunc {
   - Convert `handleGetArtistEditForm` → `(h *Handler) GetArtistEditForm()`
   - Convert API handlers similarly
 
-- [ ] `record-handlers.go` → `internal/handler/record.go`
+- [x] `record-handlers.go` → `internal/handler/record.go`
   - Same pattern for all record handlers
 
 - [ ] `location-handlers.go` → `internal/handler/location.go`
