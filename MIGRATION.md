@@ -39,7 +39,7 @@ func (h *Handler) GetArtist() http.HandlerFunc {
 
 ### Migration Checklist for Each Handler File:
 
-- [ ] `artist-handlers.go` → `internal/handler/artist.go`
+- [x] `artist-handlers.go` → `internal/handler/artist.go`
   - Convert `handleGetArtistsPage` → `(h *Handler) GetArtists Page()`
   - Convert `handleGetArtist` → `(h *Handler) GetArtist()`
   - Convert `handlePostArtist` → `(h *Handler) PostArtist()`
