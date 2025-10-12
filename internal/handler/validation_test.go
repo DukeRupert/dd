@@ -381,3 +381,358 @@ func TestUpdateLocationNameRequest_Validation(t *testing.T) {
 		})
 	}
 }
+
+// TestCreateRecordRequest_Validation tests create record validation rules
+func TestCreateRecordRequest_Validation(t *testing.T) {
+	validate := validator.New()
+
+	type CreateRecordRequest struct {
+		Title             string `validate:"required,min=1,max=200"`
+		ArtistID          int64  `validate:"omitempty,min=1"`
+		AlbumTitle        string `validate:"max=200"`
+		ReleaseYear       int32  `validate:"omitempty,min=1900,max=2100"`
+		CurrentLocationID int64  `validate:"omitempty,min=1"`
+		HomeLocationID    int64  `validate:"omitempty,min=1"`
+		CatalogNumber     string `validate:"max=100"`
+		Condition         string `validate:"omitempty,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+		Notes             string `validate:"max=1000"`
+	}
+
+	tests := []struct {
+		name      string
+		request   CreateRecordRequest
+		wantError bool
+	}{
+		{
+			"valid record with all fields",
+			CreateRecordRequest{
+				Title:             "Dark Side of the Moon",
+				ArtistID:          1,
+				AlbumTitle:        "Dark Side of the Moon",
+				ReleaseYear:       1973,
+				CurrentLocationID: 1,
+				HomeLocationID:    1,
+				CatalogNumber:     "SHVL 804",
+				Condition:         "Mint",
+				Notes:             "Original pressing",
+			},
+			false,
+		},
+		{
+			"valid record with minimal fields",
+			CreateRecordRequest{Title: "Unknown Record"},
+			false,
+		},
+		{
+			"empty title",
+			CreateRecordRequest{Title: ""},
+			true,
+		},
+		{
+			"title too long (201 chars)",
+			CreateRecordRequest{Title: string(make([]byte, 201))},
+			true,
+		},
+		{
+			"title maximum length (200 chars)",
+			CreateRecordRequest{Title: string(make([]byte, 200))},
+			false,
+		},
+		{
+			"invalid artist ID (zero)",
+			CreateRecordRequest{Title: "Test", ArtistID: 0},
+			true,
+		},
+		{
+			"invalid artist ID (negative)",
+			CreateRecordRequest{Title: "Test", ArtistID: -1},
+			true,
+		},
+				{
+			"valid artist ID",
+			CreateRecordRequest{Title: "Test", ArtistID: 1},
+			false,
+		},
+		{
+			"album title too long (201 chars)",
+			CreateRecordRequest{Title: "Test", AlbumTitle: string(make([]byte, 201))},
+			true,
+		},
+		{
+			"album title maximum length (200 chars)",
+			CreateRecordRequest{Title: "Test", AlbumTitle: string(make([]byte, 200))},
+			false,
+		},
+		{
+			"release year too early (1899)",
+			CreateRecordRequest{Title: "Test", ReleaseYear: 1899},
+			true,
+		},
+		{
+			"release year minimum (1900)",
+			CreateRecordRequest{Title: "Test", ReleaseYear: 1900},
+			false,
+		},
+		{
+			"release year too late (2101)",
+			CreateRecordRequest{Title: "Test", ReleaseYear: 2101},
+			true,
+		},
+		{
+			"release year maximum (2100)",
+			CreateRecordRequest{Title: "Test", ReleaseYear: 2100},
+			false,
+		},
+		{
+			"invalid current location ID (zero)",
+			CreateRecordRequest{Title: "Test", CurrentLocationID: 0},
+			true,
+		},
+		{
+			"invalid home location ID (negative)",
+			CreateRecordRequest{Title: "Test", HomeLocationID: -1},
+			true,
+		},
+		{
+			"valid location IDs",
+			CreateRecordRequest{Title: "Test", CurrentLocationID: 1, HomeLocationID: 2},
+			false,
+		},
+		{
+			"catalog number too long (101 chars)",
+			CreateRecordRequest{Title: "Test", CatalogNumber: string(make([]byte, 101))},
+			true,
+		},
+		{
+			"catalog number maximum length (100 chars)",
+			CreateRecordRequest{Title: "Test", CatalogNumber: string(make([]byte, 100))},
+			false,
+		},
+		{
+			"valid condition: Mint",
+			CreateRecordRequest{Title: "Test", Condition: "Mint"},
+			false,
+		},
+		{
+			"valid condition: Near Mint",
+			CreateRecordRequest{Title: "Test", Condition: "Near Mint"},
+			false,
+		},
+		{
+			"valid condition: Very Good",
+			CreateRecordRequest{Title: "Test", Condition: "Very Good"},
+			false,
+		},
+		{
+			"valid condition: Good",
+			CreateRecordRequest{Title: "Test", Condition: "Good"},
+			false,
+		},
+		{
+			"valid condition: Fair",
+			CreateRecordRequest{Title: "Test", Condition: "Fair"},
+			false,
+		},
+		{
+			"valid condition: Poor",
+			CreateRecordRequest{Title: "Test", Condition: "Poor"},
+			false,
+		},
+		{
+			"invalid condition",
+			CreateRecordRequest{Title: "Test", Condition: "Excellent"},
+			true,
+		},
+		{
+			"notes too long (1001 chars)",
+			CreateRecordRequest{Title: "Test", Notes: string(make([]byte, 1001))},
+			true,
+		},
+		{
+			"notes maximum length (1000 chars)",
+			CreateRecordRequest{Title: "Test", Notes: string(make([]byte, 1000))},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.Struct(tt.request)
+			if (err != nil) != tt.wantError {
+				if err != nil {
+					validationErrs := err.(validator.ValidationErrors)
+					t.Errorf("Validation error = %v (field: %s, tag: %s), wantError %v",
+						err, validationErrs[0].Field(), validationErrs[0].Tag(), tt.wantError)
+				} else {
+					t.Errorf("Validation error = nil, wantError %v", tt.wantError)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateRecordRequest_Validation tests update record validation rules
+func TestUpdateRecordRequest_Validation(t *testing.T) {
+	validate := validator.New()
+
+	type UpdateRecordRequest struct {
+		Title             string `validate:"required,min=1,max=200"`
+		ArtistID          int64  `validate:"omitempty,min=1"`
+		AlbumTitle        string `validate:"max=200"`
+		ReleaseYear       int32  `validate:"omitempty,min=1900,max=2100"`
+		CurrentLocationID int64  `validate:"omitempty,min=1"`
+		HomeLocationID    int64  `validate:"omitempty,min=1"`
+		CatalogNumber     string `validate:"max=100"`
+		Condition         string `validate:"omitempty,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+		Notes             string `validate:"max=1000"`
+	}
+
+	tests := []struct {
+		name      string
+		request   UpdateRecordRequest
+		wantError bool
+	}{
+		{
+			"valid update with all fields",
+			UpdateRecordRequest{
+				Title:             "Updated Title",
+				ArtistID:          2,
+				AlbumTitle:        "Updated Album",
+				ReleaseYear:       2020,
+				CurrentLocationID: 3,
+				HomeLocationID:    4,
+				CatalogNumber:     "NEW-123",
+				Condition:         "Good",
+				Notes:             "Updated notes",
+			},
+			false,
+		},
+		{
+			"valid update with minimal fields",
+			UpdateRecordRequest{Title: "Updated Title"},
+			false,
+		},
+		{
+			"empty title",
+			UpdateRecordRequest{Title: ""},
+			true,
+		},
+		{
+			"clear optional fields",
+			UpdateRecordRequest{
+				Title:         "Valid Title",
+				ArtistID:      0,
+				AlbumTitle:    "",
+				CatalogNumber: "",
+				Notes:         "",
+			},
+			true, // ArtistID=0 fails validation
+		},
+		{
+			"update condition to Fair",
+			UpdateRecordRequest{Title: "Test", Condition: "Fair"},
+			false,
+		},
+		{
+			"update condition to Poor",
+			UpdateRecordRequest{Title: "Test", Condition: "Poor"},
+			false,
+		},
+		{
+			"invalid condition",
+			UpdateRecordRequest{Title: "Test", Condition: "Damaged"},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.Struct(tt.request)
+			if (err != nil) != tt.wantError {
+				if err != nil {
+					validationErrs := err.(validator.ValidationErrors)
+					t.Errorf("Validation error = %v (field: %s, tag: %s), wantError %v",
+						err, validationErrs[0].Field(), validationErrs[0].Tag(), tt.wantError)
+				} else {
+					t.Errorf("Validation error = nil, wantError %v", tt.wantError)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateRecordLocationRequest_Validation tests location update validation
+func TestUpdateRecordLocationRequest_Validation(t *testing.T) {
+	validate := validator.New()
+
+	type UpdateRecordLocationRequest struct {
+		CurrentLocationID int64 `validate:"required,min=1"`
+	}
+
+	tests := []struct {
+		name      string
+		request   UpdateRecordLocationRequest
+		wantError bool
+	}{
+		{"valid location ID", UpdateRecordLocationRequest{CurrentLocationID: 1}, false},
+		{"large location ID", UpdateRecordLocationRequest{CurrentLocationID: 999999}, false},
+		{"zero location ID", UpdateRecordLocationRequest{CurrentLocationID: 0}, true},
+		{"negative location ID", UpdateRecordLocationRequest{CurrentLocationID: -1}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.Struct(tt.request)
+			if (err != nil) != tt.wantError {
+				if err != nil {
+					validationErrs := err.(validator.ValidationErrors)
+					t.Errorf("Validation error = %v (field: %s, tag: %s), wantError %v",
+						err, validationErrs[0].Field(), validationErrs[0].Tag(), tt.wantError)
+				} else {
+					t.Errorf("Validation error = nil, wantError %v", tt.wantError)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateRecordConditionRequest_Validation tests condition update validation
+func TestUpdateRecordConditionRequest_Validation(t *testing.T) {
+	validate := validator.New()
+
+	type UpdateRecordConditionRequest struct {
+		Condition string `validate:"required,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+	}
+
+	tests := []struct {
+		name      string
+		request   UpdateRecordConditionRequest
+		wantError bool
+	}{
+		{"Mint", UpdateRecordConditionRequest{Condition: "Mint"}, false},
+		{"Near Mint", UpdateRecordConditionRequest{Condition: "Near Mint"}, false},
+		{"Very Good", UpdateRecordConditionRequest{Condition: "Very Good"}, false},
+		{"Good", UpdateRecordConditionRequest{Condition: "Good"}, false},
+		{"Fair", UpdateRecordConditionRequest{Condition: "Fair"}, false},
+		{"Poor", UpdateRecordConditionRequest{Condition: "Poor"}, false},
+		{"empty condition", UpdateRecordConditionRequest{Condition: ""}, true},
+		{"invalid condition", UpdateRecordConditionRequest{Condition: "Excellent"}, true},
+		{"lowercase", UpdateRecordConditionRequest{Condition: "mint"}, true}, // case-sensitive
+		{"wrong casing", UpdateRecordConditionRequest{Condition: "MINT"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.Struct(tt.request)
+			if (err != nil) != tt.wantError {
+				if err != nil {
+					validationErrs := err.(validator.ValidationErrors)
+					t.Errorf("Validation error = %v (field: %s, tag: %s), wantError %v",
+						err, validationErrs[0].Field(), validationErrs[0].Tag(), tt.wantError)
+				} else {
+					t.Errorf("Validation error = nil, wantError %v", tt.wantError)
+				}
+			}
+		})
+	}
+}

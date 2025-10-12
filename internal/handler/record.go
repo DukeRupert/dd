@@ -5,6 +5,38 @@ import (
 	"net/http"
 )
 
+type CreateRecordRequest struct {
+	Title             string `form:"title" json:"title" validate:"required,min=1,max=200"`
+	ArtistID          int64  `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
+	AlbumTitle        string `form:"album_title" json:"album_title" validate:"max=200"`
+	ReleaseYear       int32  `form:"release_year" json:"release_year" validate:"omitempty,min=1900,max=2100"`
+	CurrentLocationID int64  `form:"current_location_id" json:"current_location_id" validate:"omitempty,min=1"`
+	HomeLocationID    int64  `form:"home_location_id" json:"home_location_id" validate:"omitempty,min=1"`
+	CatalogNumber     string `form:"catalog_number" json:"catalog_number" validate:"max=100"`
+	Condition         string `form:"condition" json:"condition" validate:"omitempty,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+	Notes             string `form:"notes" json:"notes" validate:"max=1000"`
+}
+
+type UpdateRecordRequest struct {
+	Title             string `form:"title" json:"title" validate:"required,min=1,max=200"`
+	ArtistID          int64  `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
+	AlbumTitle        string `form:"album_title" json:"album_title" validate:"max=200"`
+	ReleaseYear       int32  `form:"release_year" json:"release_year" validate:"omitempty,min=1900,max=2100"`
+	CurrentLocationID int64  `form:"current_location_id" json:"current_location_id" validate:"omitempty,min=1"`
+	HomeLocationID    int64  `form:"home_location_id" json:"home_location_id" validate:"omitempty,min=1"`
+	CatalogNumber     string `form:"catalog_number" json:"catalog_number" validate:"max=100"`
+	Condition         string `form:"condition" json:"condition" validate:"omitempty,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+	Notes             string `form:"notes" json:"notes" validate:"max=1000"`
+}
+
+type UpdateRecordLocationRequest struct {
+	CurrentLocationID int64 `form:"current_location_id" json:"current_location_id" validate:"required,min=1"`
+}
+
+type UpdateRecordConditionRequest struct {
+	Condition string `form:"condition" json:"condition" validate:"required,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
+}
+
 // HTML Handlers
 
 // GET /records
