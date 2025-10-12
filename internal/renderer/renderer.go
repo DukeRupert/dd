@@ -36,17 +36,18 @@ func New(templateFS embed.FS) *Renderer {
 
 // LoadTemplates loads all templates from the embedded filesystem
 func (r *Renderer) LoadTemplates() error {
-	layouts, err := fs.Glob(r.fs, "templates/layouts/*.html")
+	fmt.Println("LoadTemplates()")
+	layouts, err := fs.Glob(r.fs, "layouts/*.html")
 	if err != nil {
 		return err
 	}
 
-	pages, err := fs.Glob(r.fs, "templates/pages/*.html")
+	pages, err := fs.Glob(r.fs, "pages/*.html")
 	if err != nil {
 		return err
 	}
 
-	partials, err := fs.Glob(r.fs, "templates/partials/*.html")
+	partials, err := fs.Glob(r.fs, "partials/*.html")
 	if err != nil {
 		return err
 	}
@@ -55,6 +56,9 @@ func (r *Renderer) LoadTemplates() error {
 		// home.html -> home
 		pageName := filepath.Base(page)
 		name := strings.TrimSuffix(pageName, filepath.Ext(pageName))
+
+		// DEBUG
+		fmt.Printf("Loading template: %s from file: %s\n", name, page)
 
 		// files = layouts + page + partials
 		files := append(layouts, page)
