@@ -5,6 +5,18 @@ import (
 	"net/http"
 )
 
+type CreateLocationRequest struct {
+	Name        string `form:"name" json:"name" validate:"required,min=2,max=100"`
+	Description string `form:"description" json:"description" validate:"max=500"`
+	IsDefault   bool   `form:"is_default" json:"is_default"`
+}
+
+type UpdateLocationRequest struct {
+	Name        string `form:"name" json:"name" validate:"required,min=2,max=100"`
+	Description string `form:"description" json:"description" validate:"max=500"`
+	IsDefault   bool   `form:"is_default" json:"is_default"`
+}
+
 // HTML Handlers
 
 // GET /locations
