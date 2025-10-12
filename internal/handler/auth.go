@@ -284,7 +284,7 @@ func (h *Handler) handleAPISignup() http.HandlerFunc {
 		h.logger.Info("User created via API", slog.String("userID", userID), slog.String("email", req.Email))
 
 		// Generate JWT token
-		token, err := auth.GenerateJWT(user.ID, user.Email, user.Role)
+		token, err := auth.GenerateJWT(user.ID, user.Email, user.Role, h.config.Auth.JWTSecret, h.config.Auth.JWTExpiration)
 		if err != nil {
 			h.logger.Error("Failed to generate JWT", slog.String("error", err.Error()))
 			h.writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
@@ -294,7 +294,7 @@ func (h *Handler) handleAPISignup() http.HandlerFunc {
 		// Return token and user info
 		response := SignupResponse{
 			Token:     token,
-			ExpiresAt: time.Now().Add(JWTExpiration),
+			ExpiresAt: time.Now().Add(h.config.Auth.JWTExpiration),
 			User: UserInfo{
 				ID:       user.ID,
 				Email:    user.Email,
@@ -342,7 +342,7 @@ func (h *Handler) handleAPILogin() http.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := auth.GenerateJWT(user.ID, user.Email, user.Role)
+		token, err := auth.GenerateJWT(user.ID, user.Email, user.Role, h.config.Auth.JWTSecret, h.config.Auth.JWTExpiration)
 		if err != nil {
 			h.logger.Error("Failed to generate JWT", slog.String("error", err.Error()))
 			h.writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
@@ -354,7 +354,7 @@ func (h *Handler) handleAPILogin() http.HandlerFunc {
 		// Return token and user info
 		response := LoginResponse{
 			Token:     token,
-			ExpiresAt: time.Now().Add(JWTExpiration),
+			ExpiresAt: time.Now().Add(h.config.Auth.JWTExpiration),
 			User: UserInfo{
 				ID:       user.ID,
 				Email:    user.Email,
