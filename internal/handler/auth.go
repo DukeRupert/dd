@@ -11,7 +11,6 @@ import (
 	"github.com/dukerupert/dd/internal/auth"
 	"github.com/dukerupert/dd/internal/store"
 	"github.com/go-playground/validator/v10"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -93,7 +92,7 @@ func (h *Handler) handleSignup() http.HandlerFunc {
 		}
 
 		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := auth.HashPassword(req.Password)
 		if err != nil {
 			h.logger.Error("Failed to hash password", slog.String("error", err.Error()))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -168,8 +167,8 @@ func (h *Handler) handleLogin() http.HandlerFunc {
 			return
 		}
 
-		// Verify password using bcrypt
-		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+		// Verify password
+		err = auth.ComparePassword(user.PasswordHash, req.Password)
 		if err != nil {
 			h.logger.Warn("Invalid password attempt", slog.String("email", req.Email))
 			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
@@ -256,7 +255,7 @@ func (h *Handler) handleAPISignup() http.HandlerFunc {
 		}
 
 		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := auth.HashPassword(req.Password)
 		if err != nil {
 			h.logger.Error("Failed to hash password", slog.String("error", err.Error()))
 			h.writeErrorJSON(w, "Internal server error", http.StatusInternalServerError)
@@ -333,8 +332,8 @@ func (h *Handler) handleAPILogin() http.HandlerFunc {
 			return
 		}
 
-		// Verify password using bcrypt
-		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+		// Verify password
+		err = auth.ComparePassword(user.PasswordHash, req.Password)
 		if err != nil {
 			h.logger.Warn("API invalid password attempt", slog.String("email", req.Email))
 			h.writeErrorJSON(w, "Invalid email or password", http.StatusUnauthorized)

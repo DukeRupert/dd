@@ -52,10 +52,10 @@ func (h *Handler) GetArtist() http.HandlerFunc {
 - [x] `record-handlers.go` → `internal/handler/record.go`
   - Same pattern for all record handlers
 
-- [ ] `location-handlers.go` → `internal/handler/location.go`
+- [x] `location-handlers.go` → `internal/handler/location.go`
   - Same pattern for all location handlers
 
-- [ ] `auth-handlers.go` → `internal/handler/auth.go`
+- [x] `auth-handlers.go` → `internal/handler/auth.go`
   - Use `h.config` for JWT secret and session settings
   - Replace `generateJWT` with `auth.GenerateJWT()`
   - Replace `createSession` with `auth.CreateSession()`
