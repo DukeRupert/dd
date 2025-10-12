@@ -50,7 +50,8 @@ type SignupResponse struct {
 
 // HTML Handlers
 
-func (h *Handler) handleLanding() http.HandlerFunc {
+// GET /
+func (h *Handler) Landing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := h.renderer.Render(w, "landing", nil)
 		if err != nil {
@@ -60,7 +61,8 @@ func (h *Handler) handleLanding() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleSignupPage() http.HandlerFunc {
+// GET /signup
+func (h *Handler) SignupPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := h.renderer.Render(w, "signup", nil)
 		if err != nil {
@@ -70,7 +72,8 @@ func (h *Handler) handleSignupPage() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleSignup() http.HandlerFunc {
+// POST /signup
+func (h *Handler) Signup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req SignupRequest
 		if err := h.bind(r, &req); err != nil {
@@ -136,7 +139,8 @@ func (h *Handler) handleSignup() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleLoginPage() http.HandlerFunc {
+// GET /login
+func (h *Handler) LoginPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := h.renderer.Render(w, "login", nil)
 		if err != nil {
@@ -146,7 +150,8 @@ func (h *Handler) handleLoginPage() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleLogin() http.HandlerFunc {
+// POST /login
+func (h *Handler) Login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req LoginRequest
 		if err := h.bind(r, &req); err != nil {
@@ -194,7 +199,8 @@ func (h *Handler) handleLogin() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleLogout() http.HandlerFunc {
+//POST /logout
+func (h *Handler) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get session token from cookie
 		cookie, err := r.Cookie(SessionCookieName)
@@ -215,7 +221,8 @@ func (h *Handler) handleLogout() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleForgotPasswordPage() http.HandlerFunc {
+// GET /forgot-password
+func (h *Handler) ForgotPassword() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := h.renderer.Render(w, "forgot-password", nil)
 		if err != nil {
