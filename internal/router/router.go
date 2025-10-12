@@ -50,15 +50,16 @@ func addHTMLRoutes(mux *http.ServeMux, h *handler.Handler) {
 	mux.HandleFunc("GET /forgot-password", h.ForgotPassword())
 
 	// Protected routes
+	// TODO: Protect these routes in production
 	mux.HandleFunc("GET /dashboard", h.Dashboard())
 
 	// Artists
 	mux.HandleFunc("GET /artists", h.GetArtistsPage())
 	mux.HandleFunc("GET /artists/new", h.GetArtistNewForm())
-	mux.HandleFunc("POST /artists", h.PostArtist())
+	mux.HandleFunc("POST /artists", h.CreateArtist())
 	mux.HandleFunc("GET /artists/{id}", h.GetArtist())
+	mux.HandleFunc("PUT /artists/{id}", h.UpdateArtist())
 	mux.HandleFunc("GET /artists/{id}/edit", h.GetArtistEditForm())
-	mux.HandleFunc("PUT /artists/{id}", h.PutArtist())
 	mux.HandleFunc("DELETE /artists/{id}", h.DeleteArtist())
 
 	// Records
@@ -70,6 +71,7 @@ func addAPIRoutes(mux *http.ServeMux, h *handler.Handler) {
 	// Public API
 	mux.HandleFunc("POST /v1/auth/signup", h.APISignup())
 	mux.HandleFunc("POST /v1/auth/login", h.APILogin())
+	mux.HandleFunc("POST /v1/auth/logout", h.APILogout())
 
 	// Protected API
 	mux.HandleFunc("GET /v1/artists", h.APIGetArtists())

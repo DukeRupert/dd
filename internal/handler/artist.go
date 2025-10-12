@@ -14,7 +14,7 @@ import (
 // HTML Endpoints
 
 // GET /artists
-func (h *Handler) GetArtistList() http.HandlerFunc {
+func (h *Handler) GetArtistsPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all artists
 		// - Query database

@@ -234,7 +234,8 @@ func (h *Handler) ForgotPassword() http.HandlerFunc {
 
 // API Handlers
 
-func (h *Handler) handleAPISignup() http.HandlerFunc {
+// POST /v1/auth/signup
+func (h *Handler) APISignup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var req SignupRequest
@@ -313,7 +314,8 @@ func (h *Handler) handleAPISignup() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPILogin() http.HandlerFunc {
+// POST /v1/auth/login
+func (h *Handler) APILogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req LoginRequest
 		if err := h.bind(r, &req); err != nil {
@@ -373,7 +375,8 @@ func (h *Handler) handleAPILogin() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPILogout() http.HandlerFunc {
+// POST /v1/auth/logout
+func (h *Handler) APILogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: API logout
 		// - Get token from Authorization header
