@@ -6,7 +6,7 @@ PRAGMA foreign_keys = ON;
 -- Create artists table
 CREATE TABLE artists (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL CHECK(length(name) > 0),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_artist_name UNIQUE (name)

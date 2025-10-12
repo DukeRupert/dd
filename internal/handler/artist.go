@@ -38,7 +38,7 @@ func (h *Handler) GetArtists() http.HandlerFunc {
 func (h *Handler) CreateArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type CreateArtistRequest struct {
-			Name string `form:"name" validate:"required,min=1,max=100"`
+			Name string `form:"name" validate:"required,min=2,max=100"`
 		}
 
 		var req CreateArtistRequest
