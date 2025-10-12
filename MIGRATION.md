@@ -63,10 +63,7 @@ func (h *Handler) GetArtist() http.HandlerFunc {
   - Replace `bcrypt.GenerateFromPassword` with `auth.HashPassword()`
   - Replace `bcrypt.CompareHashAndPassword` with `auth.ComparePassword()`
 
-- [ ] `user-handlers.go` → `internal/handler/user.go`
-  - Same pattern
-
-- [ ] `stat-handlers.go` → `internal/handler/stats.go`
+- [x] `user-handlers.go` → `internal/handler/user.go`
   - Same pattern
 
 ### Helper Function Replacements
