@@ -53,7 +53,7 @@ type SignupResponse struct {
 // GET /
 func (h *Handler) Landing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := h.renderer.Render(w, "landing", nil)
+		err := h.renderer.Render(w, "home", nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -235,7 +235,7 @@ func (h *Handler) ForgotPassword() http.HandlerFunc {
 // API Handlers
 
 // POST /v1/auth/signup
-func (h *Handler) APISignup() http.HandlerFunc {
+func (h *Handler) JsonSignup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var req SignupRequest
@@ -315,7 +315,7 @@ func (h *Handler) APISignup() http.HandlerFunc {
 }
 
 // POST /v1/auth/login
-func (h *Handler) APILogin() http.HandlerFunc {
+func (h *Handler) JsonLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req LoginRequest
 		if err := h.bind(r, &req); err != nil {
@@ -376,7 +376,7 @@ func (h *Handler) APILogin() http.HandlerFunc {
 }
 
 // POST /v1/auth/logout
-func (h *Handler) APILogout() http.HandlerFunc {
+func (h *Handler) JsonLogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: API logout
 		// - Get token from Authorization header

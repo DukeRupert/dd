@@ -14,7 +14,7 @@ import (
 // HTML Endpoints
 
 // GET /artists
-func (h *Handler) GetArtistsPage() http.HandlerFunc {
+func (h *Handler) GetArtists() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all artists
 		// - Query database
@@ -153,7 +153,7 @@ func (h *Handler) DeleteArtist() http.HandlerFunc {
 }
 
 // GET /artists/new
-func (h *Handler) CreateArtistForm() http.HandlerFunc {
+func (h *Handler) GetCreateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render new artist form
 		h.renderer.Render(w, "create-artist-form", nil)
@@ -161,7 +161,7 @@ func (h *Handler) CreateArtistForm() http.HandlerFunc {
 }
 
 // GET /artists/{id}/edit
-func (h *Handler) EditArtistForm() http.HandlerFunc {
+func (h *Handler) GetUpdateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render edit artist form
 		// - Parse ID from path
@@ -177,7 +177,7 @@ func (h *Handler) EditArtistForm() http.HandlerFunc {
 // JSON API Endpoints
 
 // GET /api/v1/artists
-func (h *Handler) GETArtistListJSON() http.HandlerFunc {
+func (h *Handler) JsonGetArtists() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get artists list
 		// - Parse query params (page, limit, search)
@@ -194,7 +194,7 @@ func (h *Handler) GETArtistListJSON() http.HandlerFunc {
 }
 
 // POST /api/v1/artists
-func (h *Handler) CreateArtistJSON() http.HandlerFunc {
+func (h *Handler) JsonCreateArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type CreateArtistRequest struct {
 			Name string `json:"name" validate:"required,min=1,max=100"`
@@ -232,7 +232,7 @@ func (h *Handler) CreateArtistJSON() http.HandlerFunc {
 }
 
 // GET /api/v1/artists/{id}
-func (h *Handler) GetArtistJSON() http.HandlerFunc {
+func (h *Handler) JsonGetArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get single artist
 		// - Parse ID from path
@@ -251,7 +251,7 @@ func (h *Handler) GetArtistJSON() http.HandlerFunc {
 }
 
 // PUT /api/v1/artists/{id}
-func (h *Handler) UpdateArtistJSON() http.HandlerFunc {
+func (h *Handler) JsonUpdateArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update artist via API
 		// - Parse ID from path
@@ -266,7 +266,7 @@ func (h *Handler) UpdateArtistJSON() http.HandlerFunc {
 }
 
 // DELETE /api/v1/artists/{id}
-func (h *Handler) DeleteArtistJSON() http.HandlerFunc {
+func (h *Handler) JsonDeleteArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Delete artist via API
 		// - Parse ID from path
@@ -279,7 +279,7 @@ func (h *Handler) DeleteArtistJSON() http.HandlerFunc {
 }
 
 // GET /api/v1/artists/{id}/records
-func (h *Handler) GetRecordsByArtistJSON() http.HandlerFunc {
+func (h *Handler) JsonGetRecordsByArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all records by artist
 		// - Parse ID from path

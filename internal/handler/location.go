@@ -7,7 +7,8 @@ import (
 
 // HTML Handlers
 
-func (h *Handler) handleGetLocationsPage() http.HandlerFunc {
+// GET /locations
+func (h *Handler) GetLocations() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all locations
 		// - Query database
@@ -26,14 +27,16 @@ func (h *Handler) handleGetLocationsPage() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleGetLocationNewForm() http.HandlerFunc {
+// GET /locations/new
+func (h *Handler) GetCreateLocationForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render new location form
 		h.renderer.Render(w, "create-location-form", nil)
 	}
 }
 
-func (h *Handler) handlePostLocation() http.HandlerFunc {
+// POST /locations
+func (h *Handler) CreateLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Create new location
 		// - Parse form data
@@ -45,7 +48,8 @@ func (h *Handler) handlePostLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleGetLocation() http.HandlerFunc {
+// GET /locations/{id}
+func (h *Handler) GetLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get location details
 		// - Parse ID from path
@@ -57,7 +61,8 @@ func (h *Handler) handleGetLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleGetLocationEditForm() http.HandlerFunc {
+// GET /locations/{id}/edit
+func (h *Handler) GetUpdateLocationForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render edit location form
 		// - Parse ID from path
@@ -69,7 +74,8 @@ func (h *Handler) handleGetLocationEditForm() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handlePutLocation() http.HandlerFunc {
+// PUT /locations/{id}
+func (h *Handler) UpdateLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update location
 		// - Parse ID from path
@@ -83,7 +89,8 @@ func (h *Handler) handlePutLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleDeleteLocation() http.HandlerFunc {
+// DELETE /locations/{id}
+func (h *Handler) DeleteLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Delete location
 		// - Parse ID from path
@@ -96,7 +103,8 @@ func (h *Handler) handleDeleteLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handlePostLocationSetDefault() http.HandlerFunc {
+// POST /locations/default/{id}
+func (h *Handler) SetDefaultLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Set location as default
 		// - Parse ID from path
@@ -110,7 +118,8 @@ func (h *Handler) handlePostLocationSetDefault() http.HandlerFunc {
 
 // API Handlers
 
-func (h *Handler) handleAPIGetLocations() http.HandlerFunc {
+// GET /v1/locations
+func (h *Handler) JsonGetLocations() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get locations list
 		// - Parse query params (page, limit, search)
@@ -126,7 +135,8 @@ func (h *Handler) handleAPIGetLocations() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIPostLocation() http.HandlerFunc {
+// POST /v1/locations
+func (h *Handler) JsonCreateLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Create location via API
 		// - Parse JSON body
@@ -138,7 +148,8 @@ func (h *Handler) handleAPIPostLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIGetLocation() http.HandlerFunc {
+// GET /v1/records/{id}
+func (h *Handler) JsonGetLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get single location
 		// - Parse ID from path
@@ -149,8 +160,8 @@ func (h *Handler) handleAPIGetLocation() http.HandlerFunc {
 		h.writeJSON(w, map[string]string{"message": "location details"}, http.StatusOK)
 	}
 }
-
-func (h *Handler) handleAPIPutLocation() http.HandlerFunc {
+// PUT /v1/locations/{id}
+func (h *Handler) JsonUpdateLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update location via API
 		// - Parse ID from path
@@ -164,7 +175,8 @@ func (h *Handler) handleAPIPutLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIDeleteLocation() http.HandlerFunc {
+// DELETE /v1/locations/{id}
+func (h *Handler) JsonDeleteLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Delete location via API
 		// - Parse ID from path
@@ -176,7 +188,8 @@ func (h *Handler) handleAPIDeleteLocation() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIPostLocationSetDefault() http.HandlerFunc {
+// POST /v1/locations/default/{id}
+func (h *Handler) JsonSetDefaultLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Set location as default via API
 		// - Parse ID from path
@@ -188,7 +201,8 @@ func (h *Handler) handleAPIPostLocationSetDefault() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIGetLocationRecords() http.HandlerFunc {
+// GET /v1/locations/{id}/records
+func (h *Handler) JsonGetRecordsByLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all records at location
 		// - Parse ID from path

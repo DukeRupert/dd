@@ -8,13 +8,20 @@ This is a Go web application for managing a vinyl record collection. It provides
 
 ## Commands
 
+### Build and Run
+```bash
+# Build
+go build -o bin/server ./cmd/server
+
+# Run with default config
+./bin/server
+
+# Run with environment variables
+SERVER_PORT=3000 LOG_LEVEL=debug ./bin/server
+```
+
 ### Development
 ```bash
-# Run the application (default: localhost:8080)
-go run .
-
-# Run with custom flags
-go run . -host localhost -port 3000 -env dev -log_level debug -sqlite file my.db
 
 # Run tests
 go test ./...
@@ -42,6 +49,20 @@ go build -o dd .
 ```
 
 ## Architecture
+
+dd/
+├── cmd/server/          # Application entry point
+├── internal/
+│   ├── config/         # Configuration management
+│   ├── auth/           # Authentication (JWT, sessions, passwords)
+│   ├── handler/        # HTTP handlers
+│   ├── middleware/     # HTTP middleware
+│   ├── renderer/       # Template rendering
+│   ├── router/         # Route registration
+│   └── store/          # Database layer (sqlc generated)
+├── data/sql/           # SQL migrations and queries
+├── templates/          # HTML templates
+└── static/             # Static assets
 
 ### Database Layer (sqlc)
 

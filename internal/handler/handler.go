@@ -28,3 +28,7 @@ func New(logger *slog.Logger, queries *store.Queries, renderer *renderer.Rendere
 		config:   cfg,
 	}
 }
+
+func (h *Handler) Logger() *slog.Logger {
+	return h.logger
+}

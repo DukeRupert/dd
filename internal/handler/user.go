@@ -9,7 +9,8 @@ import (
 
 // HTML Handlers
 
-func (h *Handler) handleGetProfile() http.HandlerFunc {
+// GET /profile
+func (h *Handler) GetProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get current user's profile
 		// - Get user ID from context
@@ -21,7 +22,8 @@ func (h *Handler) handleGetProfile() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleGetProfileEditForm() http.HandlerFunc {
+// GET /profile/edit
+func (h *Handler) GetUpdateProfileForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render edit profile form
 		// - Get user ID from context
@@ -33,7 +35,8 @@ func (h *Handler) handleGetProfileEditForm() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handlePutProfile() http.HandlerFunc {
+// PUT /users/{id}
+func (h *Handler) UpdateProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update profile
 		// - Get user ID from context
@@ -47,14 +50,16 @@ func (h *Handler) handlePutProfile() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleGetPasswordForm() http.HandlerFunc {
+// GET /profile/password
+func (h *Handler) GetUpdatePasswordForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render change password form
 		h.renderer.Render(w, "password-form", nil)
 	}
 }
 
-func (h *Handler) handlePutPassword() http.HandlerFunc {
+// PUT /profile/password
+func (h *Handler) UpdatePassword() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update password
 		// - Get user ID from context
@@ -72,7 +77,8 @@ func (h *Handler) handlePutPassword() http.HandlerFunc {
 
 // API Handlers
 
-func (h *Handler) handleAPIGetMe() http.HandlerFunc {
+// GET /v1/profile
+func (h *Handler) JsonGetProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get current user info
 		// - Get user ID from context
@@ -84,20 +90,8 @@ func (h *Handler) handleAPIGetMe() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIGetUser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Get user by ID
-		// - Parse ID from path
-		// - Check permissions (admin or own profile)
-		// - Query user from database
-		// - Return user JSON (without password)
-		id := r.PathValue("id")
-		h.logger.Info("API get user handler called", slog.String("id", id))
-		h.writeJSON(w, map[string]string{"message": "user details"}, http.StatusOK)
-	}
-}
-
-func (h *Handler) handleAPIPutUser() http.HandlerFunc {
+// PUT /v1/profile
+func (h *Handler) JsonUpdateProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update user
 		// - Parse ID from path
@@ -112,21 +106,8 @@ func (h *Handler) handleAPIPutUser() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handleAPIDeleteUser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Delete user (admin only)
-		// - Parse ID from path
-		// - Check admin permissions
-		// - Prevent self-deletion
-		// - Delete user from database (cascade sessions/tokens)
-		// - Return 204 No Content
-		id := r.PathValue("id")
-		h.logger.Info("API delete user handler called", slog.String("id", id))
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
-func (h *Handler) handleAPIPutUserPassword() http.HandlerFunc {
+// PUT /v1/profile/password
+func (h *Handler) JsonUpdatePassword() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Change password via API
 		// - Parse ID from path

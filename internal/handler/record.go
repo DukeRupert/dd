@@ -8,7 +8,7 @@ import (
 // HTML Handlers
 
 // GET /records
-func (h *Handler) GetRecordsList() http.HandlerFunc {
+func (h *Handler) GetRecords() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get all records
 		// - Query database with joins for artist/location names
@@ -55,7 +55,7 @@ func (h *Handler) GetRecord() http.HandlerFunc {
 }
 
 // GET /records/new
-func (h *Handler) CreateRecordForm() http.HandlerFunc {
+func (h *Handler) GetCreateRecordForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render new record form
 		// - Query artists for dropdown
@@ -67,7 +67,7 @@ func (h *Handler) CreateRecordForm() http.HandlerFunc {
 }
 
 // GET /records/{id}/edit
-func (h *Handler) UpdateRecordForm() http.HandlerFunc {
+func (h *Handler) GetUpdateRecordForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render edit record form
 		// - Parse ID from path
@@ -125,7 +125,7 @@ func (h *Handler) PlayRecord() http.HandlerFunc {
 // API Handlers
 
 // GET /api/v1/records
-func (h *Handler) GetRecordListJSON() http.HandlerFunc {
+func (h *Handler) JsonGetRecords() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get records list
 		// - Parse query params (page, limit, search, artist_id, location_id, condition, year, sort)
@@ -143,7 +143,7 @@ func (h *Handler) GetRecordListJSON() http.HandlerFunc {
 }
 
 // POST /api/v1/records
-func (h *Handler) CreateRecordJSON() http.HandlerFunc {
+func (h *Handler) JsonCreateRecord() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Create record via API
 		// - Parse JSON body
@@ -156,7 +156,7 @@ func (h *Handler) CreateRecordJSON() http.HandlerFunc {
 }
 
 // GET /api/v1/records/{id}
-func (h *Handler) GetRecordJSON() http.HandlerFunc {
+func (h *Handler) JsonGetRecord() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get single record
 		// - Parse ID from path
@@ -169,7 +169,7 @@ func (h *Handler) GetRecordJSON() http.HandlerFunc {
 }
 
 // PUT /api/v1/records/{id}
-func (h *Handler) UpdateRecordJSON() http.HandlerFunc {
+func (h *Handler) JsonUpdateRecord() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update record via API
 		// - Parse ID from path
@@ -184,7 +184,7 @@ func (h *Handler) UpdateRecordJSON() http.HandlerFunc {
 }
 
 // DELETE /api/v1/records/{id}
-func (h *Handler) DeleteRecordJSON() http.HandlerFunc {
+func (h *Handler) JsonDeleteRecord() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Delete record via API
 		// - Parse ID from path
@@ -197,7 +197,7 @@ func (h *Handler) DeleteRecordJSON() http.HandlerFunc {
 }
 
 // POST /api/v1/records/{api}/play
-func (h *Handler) PlayRecordJSON() http.HandlerFunc {
+func (h *Handler) JsonPlayRecord() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Increment play count via API
 		// - Parse ID from path
@@ -210,7 +210,7 @@ func (h *Handler) PlayRecordJSON() http.HandlerFunc {
 }
 
 // GET /api/v1/records/recent
-func (h *Handler) GetRecordListByRecentJSON() http.HandlerFunc {
+func (h *Handler) JsonGetRecordsByRecent() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get recently played records
 		// - Parse limit query param (default 10)
@@ -222,7 +222,7 @@ func (h *Handler) GetRecordListByRecentJSON() http.HandlerFunc {
 }
 
 // GET /api/v1/records/popular
-func (h *Handler) GetRecordListByPopularJSON() http.HandlerFunc {
+func (h *Handler) JsonGetRecordsByPopular() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Get most played records
 		// - Parse limit query param (default 10)
