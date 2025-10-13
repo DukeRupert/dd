@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/dukerupert/dd/internal/store"
 )
@@ -338,6 +339,9 @@ func TestRecordPlayback(t *testing.T) {
 	if !played.LastPlayedAt.Valid {
 		t.Error("LastPlayedAt should be set after playback")
 	}
+
+	// Wait to ensure timestamp difference
+	time.Sleep(1100 * time.Millisecond)
 
 	// Record playback again
 	played2, err := queries.RecordPlayback(ctx, record.ID)

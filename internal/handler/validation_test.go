@@ -439,11 +439,6 @@ func TestCreateRecordRequest_Validation(t *testing.T) {
 			false,
 		},
 		{
-			"invalid artist ID (zero)",
-			CreateRecordRequest{Title: "Test", ArtistID: 0},
-			true,
-		},
-		{
 			"invalid artist ID (negative)",
 			CreateRecordRequest{Title: "Test", ArtistID: -1},
 			true,
@@ -482,11 +477,6 @@ func TestCreateRecordRequest_Validation(t *testing.T) {
 			"release year maximum (2100)",
 			CreateRecordRequest{Title: "Test", ReleaseYear: 2100},
 			false,
-		},
-		{
-			"invalid current location ID (zero)",
-			CreateRecordRequest{Title: "Test", CurrentLocationID: 0},
-			true,
 		},
 		{
 			"invalid home location ID (negative)",
@@ -575,18 +565,6 @@ func TestCreateRecordRequest_Validation(t *testing.T) {
 func TestUpdateRecordRequest_Validation(t *testing.T) {
 	validate := validator.New()
 
-	type UpdateRecordRequest struct {
-		Title             string `validate:"required,min=1,max=200"`
-		ArtistID          int64  `validate:"omitempty,min=1"`
-		AlbumTitle        string `validate:"max=200"`
-		ReleaseYear       int32  `validate:"omitempty,min=1900,max=2100"`
-		CurrentLocationID int64  `validate:"omitempty,min=1"`
-		HomeLocationID    int64  `validate:"omitempty,min=1"`
-		CatalogNumber     string `validate:"max=100"`
-		Condition         string `validate:"omitempty,oneof=Mint 'Near Mint' 'Very Good' Good Fair Poor"`
-		Notes             string `validate:"max=1000"`
-	}
-
 	tests := []struct {
 		name      string
 		request   UpdateRecordRequest
@@ -621,12 +599,11 @@ func TestUpdateRecordRequest_Validation(t *testing.T) {
 			"clear optional fields",
 			UpdateRecordRequest{
 				Title:         "Valid Title",
-				ArtistID:      0,
 				AlbumTitle:    "",
 				CatalogNumber: "",
 				Notes:         "",
 			},
-			true, // ArtistID=0 fails validation
+			false,
 		},
 		{
 			"update condition to Fair",

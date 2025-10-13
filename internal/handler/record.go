@@ -19,7 +19,7 @@ type CreateRecordRequest struct {
 
 type UpdateRecordRequest struct {
 	Title             string `form:"title" json:"title" validate:"required,min=1,max=200"`
-	ArtistID          int64  `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
+	ArtistID          int64 `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
 	AlbumTitle        string `form:"album_title" json:"album_title" validate:"max=200"`
 	ReleaseYear       int32  `form:"release_year" json:"release_year" validate:"omitempty,min=1900,max=2100"`
 	CurrentLocationID int64  `form:"current_location_id" json:"current_location_id" validate:"omitempty,min=1"`
@@ -120,6 +120,13 @@ func (h *Handler) UpdateRecord() http.HandlerFunc {
 		// - Parse ID from path
 		// - Parse form data
 		// - Validate input
+		// Convert to database params
+		// var artistID sql.NullInt64
+		// if req.ArtistID != nil {
+		// 	artistID = sql.NullInt64{Int64: *req.ArtistID, Valid: true}
+		// } else {
+		// 	artistID = sql.NullInt64{Valid: false} // NULL
+		// }
 		// - Update record in database
 		// - Return updated record row partial for HTMX
 		id := r.PathValue("id")

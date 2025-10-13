@@ -15,7 +15,7 @@ CREATE TABLE artists (
 -- Create locations table
 CREATE TABLE locations (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL CHECK(length(name) > 0),
     description TEXT,
     is_default BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -25,7 +25,7 @@ CREATE TABLE locations (
 -- Create records table
 CREATE TABLE records (
     id INTEGER PRIMARY KEY,
-    title TEXT NOT NULL,
+    title TEXT NOT NULL CHECK(length(title) > 0),
     artist_id INTEGER REFERENCES artists(id) ON DELETE SET NULL,
     album_title TEXT,
     release_year INTEGER,

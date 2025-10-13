@@ -166,6 +166,11 @@ func TestGetDefaultLocation_None(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Delete default locations
+	for i := 1; i < 4; i++ {
+		queries.DeleteLocation(ctx, int64(i))
+	}
+
 	// Create locations without any default
 	_, err := queries.CreateLocation(ctx, store.CreateLocationParams{
 		Name:        "Location 1",
@@ -391,6 +396,11 @@ func TestSearchLocationsByName(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
+
+	// Delete default locations
+	for i := 1; i < 4; i++ {
+		queries.DeleteLocation(ctx, int64(i))
+	}
 
 	// Create test locations
 	locationNames := []string{"Main Shelf A", "Main Shelf B", "Storage Room", "Basement Storage"}
