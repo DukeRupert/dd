@@ -3,9 +3,12 @@ package config
 import (
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -44,6 +47,11 @@ type LoggingConfig struct {
 
 // Load loads configuration from environment variables and command-line flags
 func Load() (*Config, error) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	// Command-line flags
 	var flagHost = flag.String("host", getEnv("SERVER_HOST", "localhost"), "server host")
 	var flagPort = flag.Int("port", getEnvInt("SERVER_PORT", 8080), "server port")
