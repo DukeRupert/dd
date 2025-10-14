@@ -10,10 +10,9 @@
     </p>
   </div>
   <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-    <button type="button"
-      class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-      hx-get="/artists/add-form" hx-target="#artists-form" hx-swap="innerHTML settle:100ms">
-      Add artist
+    <button hx-get="/artists/new" hx-target="#modal-content" hx-swap="innerHTML"
+      hx-on:htmx:afterSwap="console.log('hx-on afterSettle fired'); openModal()">
+      New Artist
     </button>
   </div>
 </div>
@@ -38,22 +37,22 @@
             </thead>
             <tbody id="artist-list" class="divide-y divide-gray-200 bg-white">
               {{if .Artists}}
-              {{range .Artists}}
-              <tr id="artist-{{.ID}}">
-                <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">
-                  {{.Name}}
-                </td>
-                <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
-                  <a hx-get="/artists/{{.ID}}/update-form" hx-target="#artist-{{.ID}}" hx-swap="outerHTML"
-                    class="text-indigo-600 hover:text-indigo-900"><svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                      viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 ml-auto">
-                      <path stroke-linecap="round" stroke-linejoin="round"
-                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                    </svg>
-                    <span class="sr-only">Edit, {{.Name}}</span></a>
-                </td>
-              </tr>
-              {{end}}
+                {{range .Artists}}
+                  <tr id="artist-{{.ID}}">
+                    <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">
+                      {{.Name}}
+                    </td>
+                    <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
+                      <a hx-get="/artists/{{.ID}}/update-form" hx-target="#artist-{{.ID}}" hx-swap="outerHTML"
+                        class="text-indigo-600 hover:text-indigo-900"><svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                          viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 ml-auto">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                        </svg>
+                        <span class="sr-only">Edit, {{.Name}}</span></a>
+                    </td>
+                  </tr>
+                {{end}}
               {{end}}
             </tbody>
           </table>
@@ -61,12 +60,4 @@
       </div>
     </div>
   </div>
-  <script>
-    const removeForm = (id) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.innerHTML = '';
-      }
-    };
-  </script>
-  {{end}}
+{{end}}

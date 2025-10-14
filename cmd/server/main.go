@@ -60,13 +60,13 @@ func run() error {
 	queries := store.New(db)
 
 	// Create renderer
-	r := renderer.New(templates.FS)
-	if err := r.LoadTemplates(); err != nil {
+	templateRenderer := renderer.New(templates.FS)
+	if err := templateRenderer.LoadTemplates(); err != nil {
 		return err
 	}
 
 	// Create handler
-	h := handler.New(logger, queries, r, cfg)
+	h := handler.New(logger, queries, templateRenderer, cfg)
 
 	// Create router
 	srv := router.New(h, queries, cfg.Session.CookieName)

@@ -155,8 +155,9 @@ func (h *Handler) DeleteArtist() http.HandlerFunc {
 // GET /artists/new
 func (h *Handler) GetCreateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		h.logger.Info("GetCreateArtistForm()")
 		// TODO: Render new artist form
-		h.renderer.Render(w, "create-artist-form", nil)
+		h.renderer.RenderPartial(w, "create-artist-form.html", nil)
 	}
 }
 

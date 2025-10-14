@@ -81,5 +81,26 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 		return fmt.Errorf("template %s not found", name)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Execute base.html or minimal.html, not the page template
+	// The page will be included via the layout's {{block}} directives
+	if tmpl.Lookup("base.html") != nil {
+		return tmpl.ExecuteTemplate(w, "base.html", data)
+	}
+	if tmpl.Lookup("minimal.html") != nil {
+		return tmpl.ExecuteTemplate(w, "minimal.html", data)
+	}
+	
 	return tmpl.Execute(w, data)
+}
+
+// RenderPartial renders a partial template by name from any loaded template set
+func (r *Renderer) RenderPartial(w http.ResponseWriter, partialName string, data interface{}) error {
+	// Use any template set since they all have the same partials loaded
+	for _, tmpl := range r.templates {
+		if tmpl.Lookup(partialName) != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			return tmpl.ExecuteTemplate(w, partialName, data)
+		}
+	}
+	return fmt.Errorf("partial %s not found", partialName)
 }
