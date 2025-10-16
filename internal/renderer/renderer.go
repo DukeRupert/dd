@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
-	"log/slog"
 )
 
 // Renderer handles HTML template rendering
@@ -17,11 +17,10 @@ type Renderer struct {
 	templates map[string]*template.Template
 	funcMap   template.FuncMap
 	fs        embed.FS
-	logger	  *slog.Logger
 }
 
 // New creates a new template renderer
-func New(templateFS embed.FS, logger *slog.Logger) *Renderer {
+func New(templateFS embed.FS) *Renderer {
 	return &Renderer{
 		templates: make(map[string]*template.Template),
 		fs:        templateFS,
@@ -33,12 +32,11 @@ func New(templateFS embed.FS, logger *slog.Logger) *Renderer {
 				return t.Format("2006-01-02")
 			},
 		},
-		logger: logger,
 	}
 }
 
 func (r *Renderer) LoadTemplates() error {
-    r.logger.Info("loading templates...")
+	slog.Default().Info("loading templates...")
 
 	layouts, err := fs.Glob(r.fs, "layouts/*.html")
 	if err != nil {
@@ -59,8 +57,6 @@ func (r *Renderer) LoadTemplates() error {
 	templates := append(layouts, partials...)
 	for _, t := range templates {
 		name := strings.TrimSuffix(filepath.Base(t), filepath.Ext(filepath.Base(t)))
-		r.logger.Debug("Loading template: %s from file: %s\n", name, t)
-
 		tmpl := template.Must(template.New(name).ParseFS(r.fs, t))
 		r.templates[name] = tmpl
 	}
@@ -73,8 +69,7 @@ func (r *Renderer) LoadTemplates() error {
 	// For each page, clone layouts and add the specific page
 	for _, page := range pages {
 		name := strings.TrimSuffix(filepath.Base(page), filepath.Ext(filepath.Base(page)))
-		r.logger.Debug("Loading page template: %s from file: %s\n", name, page)
-
+		slog.Default().Debug("page template parsed", "name", name)
 		tmpl := template.Must(template.Must(baseTemplates.Clone()).ParseFS(r.fs, page))
 		r.templates[name] = tmpl
 	}
@@ -82,7 +77,7 @@ func (r *Renderer) LoadTemplates() error {
 	return nil
 }
 
-func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) error {	
+func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) error {
 	tmpl, ok := r.templates[name]
 	if !ok {
 		return fmt.Errorf("template %s not found", name)

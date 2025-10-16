@@ -26,15 +26,6 @@ This document outlines the remaining tasks to complete the vinyl record collecti
 - ⏳ Add rate limiting configuration per environment
 - ⏳ Implement password reset functionality (route exists at `/forgot-password`)
 
-### 1.3 Dashboard ⏳
-- ⏳ Implement `handleDashboard` - show user's collection stats
-  - Total records count
-  - Recently added records
-  - Recently played records
-  - Collection by artist/location breakdown
-
----
-
 ## 2. Artist Management
 
 ### 2.1 HTML Handlers

@@ -61,7 +61,7 @@ func run() error {
 	queries := store.New(db)
 
 	// Create renderer
-	templateRenderer := renderer.New(templates.FS, logger)
+	templateRenderer := renderer.New(templates.FS)
 	if err := templateRenderer.LoadTemplates(); err != nil {
 		return err
 	}
