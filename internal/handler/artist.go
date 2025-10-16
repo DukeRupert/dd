@@ -27,7 +27,7 @@ func (h *Handler) GetArtists() http.HandlerFunc {
 			return
 		}
 
-		h.renderer.Render(w, "artists", map[string]interface{}{
+		h.renderer.Render(w, "create-artist-form", map[string]interface{}{
 			"Title":   "Artists",
 			"Artists": artists,
 		})
@@ -64,7 +64,7 @@ func (h *Handler) CreateArtist() http.HandlerFunc {
 		h.logger.Info("Artist created", slog.Int64("artistID", artist.ID), slog.String("name", artist.Name))
 
 		// Render the artist row partial
-		err = h.renderer.Render(w, "artists-row", artist)
+		err = h.renderer.RenderPartial(w, "artists-row", artist)
 		if err != nil {
 			h.logger.Error("Failed to render template", slog.String("error", err.Error()))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -134,7 +134,7 @@ func  (h *Handler) UpdateArtist() http.HandlerFunc {
 		// - Return updated artist row partial for HTMX
 		id := r.PathValue("id")
 		h.logger.Info("Update artist handler called", slog.String("id", id))
-		h.renderer.Render(w, "artists-row", nil)
+		// h.renderer.Render(w, "artists-row", nil)
 	}
 }
 
@@ -170,7 +170,7 @@ func (h *Handler) GetUpdateArtistForm() http.HandlerFunc {
 		// - Render edit form with current data
 		id := r.PathValue("id")
 		h.logger.Info("Get artist edit form handler called", slog.String("id", id))
-		h.renderer.Render(w, "update-artist-form", nil)
+		// h.renderer.Render(w, "update-artist-form", nil)
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slog"
 )
 
 // Renderer handles HTML template rendering
@@ -34,9 +36,9 @@ func New(templateFS embed.FS) *Renderer {
 	}
 }
 
-// LoadTemplates loads all templates from the embedded filesystem
 func (r *Renderer) LoadTemplates() error {
-	fmt.Println("LoadTemplates()")
+	slog.Info("loading templates...")
+
 	layouts, err := fs.Glob(r.fs, "layouts/*.html")
 	if err != nil {
 		return err
@@ -52,45 +54,43 @@ func (r *Renderer) LoadTemplates() error {
 		return err
 	}
 
+	// Parse all layouts and partials
+	templates := append(layouts, partials...)
+	for _, t := range templates {
+		name := strings.TrimSuffix(filepath.Base(t), filepath.Ext(filepath.Base(t)))
+		// logger.Debug("Loading template: %s from file: %s\n", name, t)
+		slog.Debug("parsing layouts and partials...")
+
+		tmpl := template.Must(template.New(name).ParseFS(r.fs, t))
+		r.templates[name] = tmpl
+	}
+
+	// Parse all layouts + partials
+	baseTemplates := template.Must(
+		template.New("tmpl").Funcs(r.funcMap).ParseFS(r.fs, append(layouts, partials...)...),
+	)
+	slog.Info("parsing layouts and partials...")
+	slog.Debug("testing if debug level is active in renderer")
+
+	// For each page, clone layouts and add the specific page
 	for _, page := range pages {
-		// home.html -> home
-		pageName := filepath.Base(page)
-		name := strings.TrimSuffix(pageName, filepath.Ext(pageName))
+		name := strings.TrimSuffix(filepath.Base(page), filepath.Ext(filepath.Base(page)))
+		fmt.Printf("Loading page template: %s from file: %s\n", name, page)
 
-		// DEBUG
-		fmt.Printf("Loading template: %s from file: %s\n", name, page)
-
-		// files = layouts + page + partials
-		files := append(layouts, page)
-		files = append(files, partials...)
-
-		tmpl := template.Must(
-			template.New(pageName).Funcs(r.funcMap).ParseFS(r.fs, files...),
-		)
-
+		tmpl := template.Must(template.Must(baseTemplates.Clone()).ParseFS(r.fs, page))
 		r.templates[name] = tmpl
 	}
 
 	return nil
 }
 
-// Render renders a template with the given data
-func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) error {
-	tmpl, exists := r.templates[name]
-	if !exists {
+func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) error {	
+	tmpl, ok := r.templates[name]
+	if !ok {
 		return fmt.Errorf("template %s not found", name)
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Execute base.html or minimal.html, not the page template
-	// The page will be included via the layout's {{block}} directives
-	if tmpl.Lookup("base.html") != nil {
-		return tmpl.ExecuteTemplate(w, "base.html", data)
-	}
-	if tmpl.Lookup("minimal.html") != nil {
-		return tmpl.ExecuteTemplate(w, "minimal.html", data)
-	}
-	
-	return tmpl.Execute(w, data)
+
+	return tmpl.ExecuteTemplate(w, name, data)
 }
 
 // RenderPartial renders a partial template by name from any loaded template set
@@ -104,3 +104,24 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, partialName string, data
 	}
 	return fmt.Errorf("partial %s not found", partialName)
 }
+
+func (r *Renderer) RenderPage(w http.ResponseWriter, page string, data interface{}) {
+	tmpl, ok := r.templates[page]
+	if !ok {
+		fmt.Errorf("template %s not found", page)
+	}
+    // Executes: app.html layout → page defines blocks → partials
+    err := tmpl.ExecuteTemplate(w, "app.html", data)
+	if err != nil {
+		fmt.Errorf("failed to ExecuteTemplate", page)
+	}
+}
+
+// func (r *Renderer) renderPartial(w http.ResponseWriter, partial string, data interface{}) {
+//     tmpl, ok := r.templates[partial]
+// 	if !ok {
+// 		fmt.Errorf("template %s not found", page)
+// 	}
+// 	// Executes just the partial for htmx
+//     err := h.templates.ExecuteTemplate(w, partial, data)
+// }

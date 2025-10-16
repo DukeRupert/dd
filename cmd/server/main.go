@@ -32,6 +32,8 @@ func run() error {
 	// Setup logger
 	logger := slog.New(cfg.Logging.Handler)
 	slog.SetDefault(logger)
+	
+	slog.Debug("Debug level is set")
 
 	// Open database
 	db, err := sql.Open("sqlite", cfg.Database.Path)

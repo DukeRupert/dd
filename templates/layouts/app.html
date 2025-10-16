@@ -1,0 +1,98 @@
+{{define "app.html"}}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    {{block "head" .}}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{block "title" .}}<title>Doxie Discs {{if .Title}} - {{.Title}}{{end}}{{end}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js"
+        integrity="sha384-ZBXiYtYQ6hJ2Y0ZNoYuI+Nq5MqWBr+chMrS/RkXpNzQCApHEhOt2aY8EJgqwHLkJ"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js" defer></script>
+    {{end}}
+</head>
+
+
+<body class="h-full bg-gray-50" x-data="{'isModalOpen': false}" x-on:keydown.escape="isModalOpen=false">
+    <div class="min-h-full">
+        {{template "modal.html"}}
+        {{template "navigation.html" .}}
+        {{block "header" .}}
+        <header class="bg-white shadow">
+            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+                    {{if .Title}}{{.Title}}{{else}}Dashboard{{end}}
+                </h1>
+            </div>
+        </header>
+        {{end}}
+
+        <div class="py-10 min-h-screen">
+            <main>
+                <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    {{block "content" .}}
+                    <p>Default content for this block.</p>
+                    {{end}}
+                </div>
+            </main>
+        </div>
+
+        {{block "footer" .}}
+        <footer class="border-t border-gray-200 bg-white">
+            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <p class="text-center text-sm text-gray-500">&copy; 2025 Your Vinyl Collection</p>
+            </div>
+        </footer>
+        {{end}}
+    </div>
+
+    {{block "scripts" .}}
+    <script>
+        console.log('Default app loaded');
+
+        function openModal() {
+            document.getElementById('dialog-control').click();
+        }
+        document.body.addEventListener('htmx:afterSettle', function (evt) {
+            let element = evt.detail.elt
+            let id = element.id
+            if (id == 'modal-content') {
+                openModal()
+            }
+        })
+        document.body.addEventListener('htmx:confirm', function (evt) {
+            // 1. The requirement to show the sweet alert is that the element has a confirm-with-sweet-alert
+            //    attribute on it, if it doesn't we can return early and let the default behavior happen
+            if (!evt.detail.target.hasAttribute('confirm-with-sweet-alert')) return
+
+            // 2. Get the question from the attribute
+            const question = evt.detail.target.getAttribute('confirm-with-sweet-alert');
+
+            // 3. Prevent the default behavior (this will prevent the request from being issued)
+            evt.preventDefault();
+
+            // 4. Show the sweet alert
+            swal({
+                title: "Are you sure?",
+                text: question || "Are you sure you want to continue?",
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            }).then((confirmed) => {
+                if (confirmed) {
+                    // 5. If the user confirms, we can manually issue the request
+                    evt.detail.issueRequest(true); // true to skip the built-in window.confirm()
+                }
+            });
+        });
+    </script>
+    {{end}}
+</body>
+
+</html>
+{{end}}

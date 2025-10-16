@@ -41,7 +41,7 @@ type SessionConfig struct {
 }
 
 type LoggingConfig struct {
-	Level   string
+	Level   slog.Level
 	Handler slog.Handler
 }
 
@@ -104,7 +104,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.Logging = LoggingConfig{
-		Level:   *flagLogLevel,
+		Level:   programLevel.Level(),
 		Handler: handler,
 	}
 

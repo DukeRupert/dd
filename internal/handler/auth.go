@@ -53,11 +53,7 @@ type SignupResponse struct {
 // GET /
 func (h *Handler) Landing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := h.renderer.Render(w, "home", nil)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		h.renderer.Render(w, "home", nil)
 	}
 }
 
