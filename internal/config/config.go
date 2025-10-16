@@ -96,7 +96,15 @@ func Load() (*Config, error) {
 	var handler slog.Handler
 	switch *flagEnv {
 	case "prod", "production":
-		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: programLevel,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					return slog.String("time", a.Value.Time().Format(time.RFC3339Nano))
+				}
+				return a
+			},
+		})
 	case "dev", "development":
 		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	default:

@@ -9,8 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // Renderer handles HTML template rendering
@@ -18,10 +17,11 @@ type Renderer struct {
 	templates map[string]*template.Template
 	funcMap   template.FuncMap
 	fs        embed.FS
+	logger	  *slog.Logger
 }
 
 // New creates a new template renderer
-func New(templateFS embed.FS) *Renderer {
+func New(templateFS embed.FS, logger *slog.Logger) *Renderer {
 	return &Renderer{
 		templates: make(map[string]*template.Template),
 		fs:        templateFS,
@@ -33,11 +33,12 @@ func New(templateFS embed.FS) *Renderer {
 				return t.Format("2006-01-02")
 			},
 		},
+		logger: logger,
 	}
 }
 
 func (r *Renderer) LoadTemplates() error {
-	slog.Info("loading templates...")
+    r.logger.Info("loading templates...")
 
 	layouts, err := fs.Glob(r.fs, "layouts/*.html")
 	if err != nil {
@@ -58,8 +59,7 @@ func (r *Renderer) LoadTemplates() error {
 	templates := append(layouts, partials...)
 	for _, t := range templates {
 		name := strings.TrimSuffix(filepath.Base(t), filepath.Ext(filepath.Base(t)))
-		// logger.Debug("Loading template: %s from file: %s\n", name, t)
-		slog.Debug("parsing layouts and partials...")
+		r.logger.Debug("Loading template: %s from file: %s\n", name, t)
 
 		tmpl := template.Must(template.New(name).ParseFS(r.fs, t))
 		r.templates[name] = tmpl
@@ -69,13 +69,11 @@ func (r *Renderer) LoadTemplates() error {
 	baseTemplates := template.Must(
 		template.New("tmpl").Funcs(r.funcMap).ParseFS(r.fs, append(layouts, partials...)...),
 	)
-	slog.Info("parsing layouts and partials...")
-	slog.Debug("testing if debug level is active in renderer")
 
 	// For each page, clone layouts and add the specific page
 	for _, page := range pages {
 		name := strings.TrimSuffix(filepath.Base(page), filepath.Ext(filepath.Base(page)))
-		fmt.Printf("Loading page template: %s from file: %s\n", name, page)
+		r.logger.Debug("Loading page template: %s from file: %s\n", name, page)
 
 		tmpl := template.Must(template.Must(baseTemplates.Clone()).ParseFS(r.fs, page))
 		r.templates[name] = tmpl
@@ -92,36 +90,3 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 
 	return tmpl.ExecuteTemplate(w, name, data)
 }
-
-// RenderPartial renders a partial template by name from any loaded template set
-func (r *Renderer) RenderPartial(w http.ResponseWriter, partialName string, data interface{}) error {
-	// Use any template set since they all have the same partials loaded
-	for _, tmpl := range r.templates {
-		if tmpl.Lookup(partialName) != nil {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			return tmpl.ExecuteTemplate(w, partialName, data)
-		}
-	}
-	return fmt.Errorf("partial %s not found", partialName)
-}
-
-func (r *Renderer) RenderPage(w http.ResponseWriter, page string, data interface{}) {
-	tmpl, ok := r.templates[page]
-	if !ok {
-		fmt.Errorf("template %s not found", page)
-	}
-    // Executes: app.html layout → page defines blocks → partials
-    err := tmpl.ExecuteTemplate(w, "app.html", data)
-	if err != nil {
-		fmt.Errorf("failed to ExecuteTemplate", page)
-	}
-}
-
-// func (r *Renderer) renderPartial(w http.ResponseWriter, partial string, data interface{}) {
-//     tmpl, ok := r.templates[partial]
-// 	if !ok {
-// 		fmt.Errorf("template %s not found", page)
-// 	}
-// 	// Executes just the partial for htmx
-//     err := h.templates.ExecuteTemplate(w, partial, data)
-// }

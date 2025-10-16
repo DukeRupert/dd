@@ -19,7 +19,7 @@ type CreateRecordRequest struct {
 
 type UpdateRecordRequest struct {
 	Title             string `form:"title" json:"title" validate:"required,min=1,max=200"`
-	ArtistID          int64 `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
+	ArtistID          int64  `form:"artist_id" json:"artist_id" validate:"omitempty,min=1"`
 	AlbumTitle        string `form:"album_title" json:"album_title" validate:"max=200"`
 	ReleaseYear       int32  `form:"release_year" json:"release_year" validate:"omitempty,min=1900,max=2100"`
 	CurrentLocationID int64  `form:"current_location_id" json:"current_location_id" validate:"omitempty,min=1"`
@@ -69,7 +69,7 @@ func (h *Handler) CreateRecord() http.HandlerFunc {
 		// - Create record in database
 		// - Return record row partial for HTMX
 		h.logger.Info("Create record handler called")
-		h.renderer.RenderPartial(w, "records-row", nil)
+		h.renderer.Render(w, "records-row", nil)
 	}
 }
 
@@ -94,7 +94,7 @@ func (h *Handler) GetCreateRecordForm() http.HandlerFunc {
 		// - Query locations for dropdown
 		// - Render form
 		h.logger.Info("Get new record form handler called")
-		h.renderer.RenderPartial(w, "create-record-form", nil)
+		h.renderer.Render(w, "create-record-form", nil)
 	}
 }
 
@@ -109,7 +109,7 @@ func (h *Handler) GetUpdateRecordForm() http.HandlerFunc {
 		// - Render edit form with current data
 		id := r.PathValue("id")
 		h.logger.Info("Get record edit form handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "update-record-form", nil)
+		h.renderer.Render(w, "update-record-form", nil)
 	}
 }
 
@@ -131,7 +131,7 @@ func (h *Handler) UpdateRecord() http.HandlerFunc {
 		// - Return updated record row partial for HTMX
 		id := r.PathValue("id")
 		h.logger.Info("Update record handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "records-row", nil)
+		h.renderer.Render(w, "records-row", nil)
 	}
 }
 
@@ -157,7 +157,7 @@ func (h *Handler) PlayRecord() http.HandlerFunc {
 		// - Return updated record row or play count display for HTMX
 		id := r.PathValue("id")
 		h.logger.Info("Record play handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "record-play-count", nil)
+		h.renderer.Render(w, "record-play-count", nil)
 	}
 }
 

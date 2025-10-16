@@ -64,7 +64,7 @@ func (h *Handler) CreateArtist() http.HandlerFunc {
 		h.logger.Info("Artist created", slog.Int64("artistID", artist.ID), slog.String("name", artist.Name))
 
 		// Render the artist row partial
-		err = h.renderer.RenderPartial(w, "artists-row", artist)
+		err = h.renderer.Render(w, "artists-row", artist)
 		if err != nil {
 			h.logger.Error("Failed to render template", slog.String("error", err.Error()))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -110,7 +110,7 @@ func (h *Handler) GetArtist() http.HandlerFunc {
 
 		// render artist detail page
 		h.logger.Info("Artist retrieved", slog.Int64("artistID", artistID), slog.String("name", artist.Name), slog.Int("recordCount", len(records)))
-		
+
 		err = h.renderer.Render(w, "artist-detail", map[string]interface{}{
 			"Title":   artist.Name,
 			"Artist":  artist,
@@ -124,7 +124,7 @@ func (h *Handler) GetArtist() http.HandlerFunc {
 }
 
 // PUT /artists/{id}
-func  (h *Handler) UpdateArtist() http.HandlerFunc {
+func (h *Handler) UpdateArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Update artist
 		// - Parse ID from path
@@ -157,7 +157,7 @@ func (h *Handler) GetCreateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("GetCreateArtistForm()")
 		// TODO: Render new artist form
-		h.renderer.RenderPartial(w, "create-artist-form.html", nil)
+		h.renderer.Render(w, "create-artist-form.html", nil)
 	}
 }
 
@@ -173,7 +173,6 @@ func (h *Handler) GetUpdateArtistForm() http.HandlerFunc {
 		// h.renderer.Render(w, "update-artist-form", nil)
 	}
 }
-
 
 // JSON API Endpoints
 

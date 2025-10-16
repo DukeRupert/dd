@@ -198,11 +198,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-
-	// Setup logger
-	logger := slog.New(cfg.Logging.Handler)
-	slog.SetDefault(logger)
-
+	
 	// Open database
 	db, err := sql.Open("sqlite", cfg.Database.Path)
 	if err != nil {

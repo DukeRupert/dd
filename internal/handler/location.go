@@ -43,7 +43,7 @@ func (h *Handler) GetLocations() http.HandlerFunc {
 func (h *Handler) GetCreateLocationForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render new location form
-		h.renderer.RenderPartial(w, "create-location-form", nil)
+		h.renderer.Render(w, "create-location-form", nil)
 	}
 }
 
@@ -56,7 +56,7 @@ func (h *Handler) CreateLocation() http.HandlerFunc {
 		// - Create location in database
 		// - Return location row partial for HTMX
 		h.logger.Info("Create location handler called")
-		h.renderer.RenderPartial(w, "locations-row", nil)
+		h.renderer.Render(w, "locations-row", nil)
 	}
 }
 
@@ -82,7 +82,7 @@ func (h *Handler) GetUpdateLocationForm() http.HandlerFunc {
 		// - Render edit form with current data
 		id := r.PathValue("id")
 		h.logger.Info("Get location edit form handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "update-location-form", nil)
+		h.renderer.Render(w, "update-location-form", nil)
 	}
 }
 
@@ -97,7 +97,7 @@ func (h *Handler) UpdateLocation() http.HandlerFunc {
 		// - Return updated location row partial for HTMX
 		id := r.PathValue("id")
 		h.logger.Info("Update location handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "locations-row", nil)
+		h.renderer.Render(w, "locations-row", nil)
 	}
 }
 
@@ -124,7 +124,7 @@ func (h *Handler) SetDefaultLocation() http.HandlerFunc {
 		// - Return updated locations list or row for HTMX
 		id := r.PathValue("id")
 		h.logger.Info("Set default location handler called", slog.String("id", id))
-		h.renderer.RenderPartial(w, "locations-list", nil)
+		h.renderer.Render(w, "locations-list", nil)
 	}
 }
 
@@ -172,6 +172,7 @@ func (h *Handler) JsonGetLocation() http.HandlerFunc {
 		h.writeJSON(w, map[string]string{"message": "location details"}, http.StatusOK)
 	}
 }
+
 // PUT /v1/locations/{id}
 func (h *Handler) JsonUpdateLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

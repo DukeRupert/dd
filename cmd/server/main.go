@@ -29,11 +29,10 @@ func run() error {
 		return err
 	}
 
-	// Setup logger
+	// Set this handler as the default for slog
 	logger := slog.New(cfg.Logging.Handler)
 	slog.SetDefault(logger)
-	
-	slog.Debug("Debug level is set")
+	logger.Info("logger initialized", slog.String("level", cfg.Logging.Level.String()))
 
 	// Open database
 	db, err := sql.Open("sqlite", cfg.Database.Path)
@@ -62,7 +61,7 @@ func run() error {
 	queries := store.New(db)
 
 	// Create renderer
-	templateRenderer := renderer.New(templates.FS)
+	templateRenderer := renderer.New(templates.FS, logger)
 	if err := templateRenderer.LoadTemplates(); err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func run() error {
 	// Create router
 	srv := router.New(h, queries, cfg.Session.CookieName)
 
-	logger.Info("Starting server", slog.String("port", strconv.Itoa(cfg.Server.Port)))
+	slog.Info("Starting server", slog.String("port", strconv.Itoa(cfg.Server.Port)))
 
 	return http.ListenAndServe(net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port)), srv)
 }

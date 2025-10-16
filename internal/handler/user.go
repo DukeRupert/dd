@@ -31,7 +31,7 @@ func (h *Handler) GetUpdateProfileForm() http.HandlerFunc {
 		// - Render edit form with current data
 		userID, _ := middleware.GetUserID(r.Context())
 		h.logger.Info("Get profile edit form handler called", slog.String("userID", userID))
-		h.renderer.RenderPartial(w, "profile-edit-form", nil)
+		h.renderer.Render(w, "profile-edit-form", nil)
 	}
 }
 
@@ -54,7 +54,7 @@ func (h *Handler) UpdateProfile() http.HandlerFunc {
 func (h *Handler) GetUpdatePasswordForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Render change password form
-		h.renderer.RenderPartial(w, "password-form", nil)
+		h.renderer.Render(w, "password-form", nil)
 	}
 }
 
