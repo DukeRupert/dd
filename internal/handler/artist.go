@@ -126,15 +126,56 @@ func (h *Handler) GetArtist() http.HandlerFunc {
 // PUT /artists/{id}
 func (h *Handler) UpdateArtist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Update artist
-		// - Parse ID from path
-		// - Parse form data
-		// - Validate input
-		// - Update artist in database
-		// - Return updated artist row partial for HTMX
+		// is there an id?
 		id := r.PathValue("id")
-		h.logger.Info("Update artist handler called", slog.String("id", id))
-		// h.renderer.Render(w, "artists-row", nil)
+		if id == "" {
+			h.logger.Info("Bad request. Missing path id")
+			http.Error(w, "Missing parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// is it an integer?
+		artistID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			h.logger.Error("Invalid parameter id", slog.String("error", err.Error()))
+			http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// parse and validate form data
+		type UpdateArtistRequest struct {
+			Name string `form:"name" validate:"required,min=2,max=100"`
+		}
+
+		var req UpdateArtistRequest
+		if err := h.bind(r, &req); err != nil {
+			// Check if it's a validation error
+			if validationErrs, ok := err.(validator.ValidationErrors); ok {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(h.formatValidationErrorsHTML(validationErrs)))
+				return
+			}
+			// Other binding errors
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// create database payload 
+		data := store.UpdateArtistParams{
+			Name: req.Name,
+			ID: artistID,
+		}
+
+		// update artist in database
+		artist, err := h.queries.UpdateArtist(r.Context(), data)
+		if err != nil {
+			h.logger.Error("Failed to update artist", slog.String("error", err.Error()), slog.Int64("artistID", artistID))
+			http.Error(w, "Failed to update artist", http.StatusInternalServerError)
+			return
+		}
+		
+		// - Return updated artist row partial for HTMX
+		h.renderer.Render(w, "artists-row", artist)
 	}
 }
 
@@ -162,13 +203,32 @@ func (h *Handler) GetCreateArtistForm() http.HandlerFunc {
 // GET /artists/{id}/edit
 func (h *Handler) GetUpdateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Render edit artist form
 		// - Parse ID from path
-		// - Query artist
-		// - Render edit form with current data
 		id := r.PathValue("id")
-		h.logger.Info("Get artist edit form handler called", slog.String("id", id))
-		// h.renderer.Render(w, "update-artist-form", nil)
+		if id == "" {
+			h.logger.Error("Missing parameter", slog.String("parameter", "artist-id"))
+			http.Error(w, "Missing parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// is it an integer?
+		artistID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			h.logger.Error("Invalid parameter id", slog.String("error", err.Error()))
+			http.Error(w, "Invalid parameter: id", http.StatusBadRequest)
+			return
+		}
+
+		// query artist
+		artist, err := h.queries.GetArtist(r.Context(), artistID)
+		if err != nil {
+			h.logger.Error("Failed to retrieve artist", slog.String("error", err.Error()), slog.Int64("artistID", artistID))
+			http.Error(w, "Artist not found", http.StatusNotFound)
+			return
+		}
+
+		// - Render edit form with current data
+		h.renderer.Render(w, "update-artist-form", artist)
 	}
 }
 
