@@ -27,7 +27,7 @@ func (h *Handler) GetArtists() http.HandlerFunc {
 			return
 		}
 
-		h.renderer.Render(w, "create-artist-form", map[string]interface{}{
+		h.renderer.Render(w, "artists", map[string]interface{}{
 			"Title":   "Artists",
 			"Artists": artists,
 		})
@@ -155,9 +155,7 @@ func (h *Handler) DeleteArtist() http.HandlerFunc {
 // GET /artists/new
 func (h *Handler) GetCreateArtistForm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		h.logger.Info("GetCreateArtistForm()")
-		// TODO: Render new artist form
-		h.renderer.Render(w, "create-artist-form.html", nil)
+		h.renderer.Render(w, "create-artist-form", nil)
 	}
 }
 
