@@ -12,7 +12,9 @@
     </p>
   </div>
   <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-    <button hx-get="/artists/new" hx-target="#modal-content" hx-swap="innerHTML">
+    <button @click="$dispatch('open-modal')">Open by dispatch</button>
+    <button @click="$refs.dialog.open()">Open by ref</button>
+    <button hx-get="/artists/new" hx-target="#modal-content" hx-swap="innerHTML" @htmx:after-request="$dispatch('open-modal')">
       New Artist
     </button>
   </div>

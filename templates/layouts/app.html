@@ -13,13 +13,32 @@
     <script src="https://unpkg.com/alpinejs" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
     <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js" defer></script>
+    <style>
+        dialog[open] {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        dialog[open]::backdrop {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
     {{block "head" .}}{{end}}
 </head>
 
 
-<body class="h-full bg-gray-50" x-data="{'isModalOpen': false}" x-on:keydown.escape="isModalOpen=false">
+<body class="h-full bg-gray-50">
     <div class="min-h-full">
-        {{template "modal.html"}}
+        {{template "alpine-modal"}}
         {{template "navigation.html" .}}
         {{block "header" .}}
         <header class="bg-white shadow">
@@ -53,17 +72,14 @@
     {{block "scripts" .}}
     <script>
         console.log('Default app loaded');
-
-        function openModal() {
-            document.getElementById('dialog-control').click();
+        function testMe() {
+            console.log("htmx:settleAfter fires")
         }
-        document.body.addEventListener('htmx:afterSettle', function (evt) {
-            let element = evt.detail.elt
-            let id = element.id
-            if (id == 'modal-content') {
-                openModal()
-            }
-        })
+
+        function testMe2() {
+            console.log("hx-on:htmx:after-request fires")
+        }
+        
         document.body.addEventListener('htmx:confirm', function (evt) {
             // 1. The requirement to show the sweet alert is that the element has a confirm-with-sweet-alert
             //    attribute on it, if it doesn't we can return early and let the default behavior happen

@@ -1,0 +1,34 @@
+<div x-data @open-modal.window="$refs.dialog.showModal()" @close-modal.window="$refs.dialog.close()">
+  <dialog x-ref="dialog" 
+    @click.self="$refs.dialog.close()"
+    id="dialog" 
+    aria-labelledby="dialog-title" 
+    class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-gray-500/75 dark:backdrop:bg-gray-900/50">
+    
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50"></div>
+
+    <div tabindex="0" class="flex min-h-full items-end justify-center p-4 text-center focus:outline-none sm:items-center sm:p-0">
+      <!-- Panel -->
+      <div @click.stop
+        class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl sm:my-8 sm:w-full sm:max-w-sm sm:p-6 dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10">
+        
+        <!-- Close button -->
+        <div class="absolute top-0 right-0 pt-4 pr-4">
+          <button type="button" 
+            @click="$refs.dialog.close()"
+            class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-2 focus:outline-offset-2 focus:outline-emerald-600 dark:bg-gray-800 dark:text-gray-500 dark:hover:text-gray-400">
+            <span class="sr-only">Close</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-6">
+              <path d="M6 18 18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div id="modal-content">
+          <!-- Content here -->
+        </div>
+      </div>
+    </div>
+  </dialog>
+</div>
