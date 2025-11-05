@@ -63,13 +63,16 @@ func (h *Handler) CreateArtist() http.HandlerFunc {
 
 		h.logger.Info("Artist created", slog.Int64("artistID", artist.ID), slog.String("name", artist.Name))
 
-		// Render the artist row partial
-		err = h.renderer.Render(w, "artists-row", artist)
+		artists, err := h.queries.ListArtists(r.Context())
 		if err != nil {
-			h.logger.Error("Failed to render template", slog.String("error", err.Error()))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("Failed to retrieve artists", slog.String("error", err.Error()))
+			http.Error(w, "Failed to retrieve artists", http.StatusInternalServerError)
 			return
 		}
+
+		h.renderer.Render(w, "artists-list", map[string]interface{}{
+			"Artists": artists,
+		})
 	}
 }
 
@@ -160,10 +163,10 @@ func (h *Handler) UpdateArtist() http.HandlerFunc {
 			return
 		}
 
-		// create database payload 
+		// create database payload
 		data := store.UpdateArtistParams{
 			Name: req.Name,
-			ID: artistID,
+			ID:   artistID,
 		}
 
 		// update artist in database
@@ -173,7 +176,7 @@ func (h *Handler) UpdateArtist() http.HandlerFunc {
 			http.Error(w, "Failed to update artist", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// - Return updated artist row partial for HTMX
 		h.renderer.Render(w, "artists-row", artist)
 	}

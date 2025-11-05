@@ -1,9 +1,8 @@
 {{define "create-artist-form"}}
 <div class="space-y-6">
-  <h2 class="text-base/7 font-semibold text-gray-900 dark:text-white">Create Artist</h2>
+  <h2 class="text-base/7 font-semibold text-gray-900 dark:text-white sr-only">Create Artist</h2>
 
-  <form hx-post="/artists" hx-target="#artist-list" hx-swap="afterbegin"
-    @htmx:after-request="if(event.detail.successful) $refs.closeBtn.click()" class="space-y-6">
+  <form hx-post="/artists" hx-target="#content-body" hx-swap="innerHTML" class="space-y-6">
     <div>
       <label for="name" class="block text-sm/6 font-medium text-gray-900 dark:text-white">
         Artist Name
